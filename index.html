@@ -1834,7 +1834,7 @@ function playStep(i, t, sixteenth) {
 let stepPhase = 0, crackleT = 0;
 function updateAudio(dt, speed, hs) {
   if (!audio) return;
-  const c = audio.ctx, now = c.currentTime, p = P.pos, set = (prm, v, k) => prm.setTargetAtTime(v, now, k || 0.08);
+  const c = audio.ctx, now = c.currentTime, p = P.pos, set = (prm, v, k) => { if (Number.isFinite(v)) prm.setTargetAtTime(v, now, k || 0.08); };
   const live = playing && !crash;
   // wind: only in the air at real speed, and kept low so it never drowns things out
   set(audio.wind.g.gain, live && !P.onGround && speed > 15 ? Math.pow(clamp((speed - 15) / 45, 0, 1), 2) * 0.08 : 0, 0.25);
@@ -1844,7 +1844,7 @@ function updateAudio(dt, speed, hs) {
   set(audio.grind.g.gain, live && P.mode === 'grind' ? 0.1 : 0, 0.03);
   set(audio.wash.g.gain, live && P.mode === 'surf' ? 0.05 + Math.min(0.12, hs * 0.008) : 0); set(audio.wash.f.frequency, 700 + hs * 70);
   const a = DIS.active, stormD = a && a.type === 'tornado' && funnel ? Math.hypot(p.x - a.pos.x, p.z - a.pos.z) : 1e9;
-  set(audio.storm.g.gain, live ? clamp(1 - stormD / 260, 0, 1) * 0.6 * (a ? a.alive : 0) : 0, 0.3);
+  set(audio.storm.g.gain, live && stormD < 260 ? clamp(1 - stormD / 260, 0, 1) * 0.6 * a.alive : 0, 0.3);
   set(audio.engG.gain, live && P.bike ? 0.045 : 0); set(audio.eng.frequency, 55 + hs * 7 + (P.bikeBoost ? 25 : 0), 0.06);
   // footsteps on the run cycle
   if (live && P.onGround && P.mode === 'foot' && !P.skates && !P.bike && hs > 1.5) {
@@ -2503,7 +2503,7 @@ function particles(n, color, size, additive, opacity) {
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const mat = new THREE.PointsMaterial({ color, size, map: softDot, transparent: true, opacity, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, fog: !additive });
   const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; scene.add(pts);
-  return { pos, vel, life, geo, mat, n, next: 0, base: opacity };
+  return { pos, vel, life, geo, mat, pts, n, next: 0, base: opacity };
 }
 function emit(ps, x, y, z, vx, vy, vz, life) {
   const i = ps.next++ % ps.n, o = i * 3;
@@ -2714,7 +2714,11 @@ function updateFunnel(dt, c, alive) {
   }
   d.instanceMatrix.needsUpdate = true;
 }
-function removeFunnel() { if (!funnel) return; scene.remove(funnel.debris); funnel.ps.mat.opacity = 0; funnel.ps.pos.fill(-1000); funnel.ps.geo.attributes.position.needsUpdate = true; funnel = null; }
+function removeFunnel() { // take the whole funnel out of the scene so tornadoes don't pile up
+  if (!funnel) return;
+  scene.remove(funnel.debris, funnel.ps.pts); funnel.debris.geometry.dispose(); funnel.ps.geo.dispose(); funnel.ps.mat.dispose();
+  funnel = null;
+}
 const windV = new THREE.Vector3();
 function tornadoWind(p) { // pull, swirl and lift around the funnel
   const a = DIS.active; if (!a || a.type !== 'tornado' || a.alive < 0.3) return null;
@@ -3017,7 +3021,16 @@ let acc = 0, last = performance.now(), shakeT = 0, shoulder = 0.8;
 const handPos = new THREE.Vector3();
 P.mouseTurn = 0;
 resetRun();
+let frameErrors = 0;
 function frame(now) {
+  try { frameBody(now); }
+  catch (e) { // keep running; report the first few so they can be fixed
+    if (frameErrors++ < 5) console.error('Vertigo City frame error:', e);
+    last = now;
+  }
+  requestAnimationFrame(frame);
+}
+function frameBody(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   pollPad(dt);
 
@@ -3201,7 +3214,6 @@ function frame(now) {
   for (const r of rings) if (!r.got) r.mesh.children[0].material.opacity = 0.06 + 0.05 * Math.sin(now / 300);
 
   renderer.render(scene, camera);
-  requestAnimationFrame(frame);
 }
 // ---------- minimap: north up, whole city, 1px ≈ 5m ----------
 const MM = $('minimap'), mctx = MM.getContext('2d'), MS = MM.width, MSPAN = 1600, mscale = MS / MSPAN;
