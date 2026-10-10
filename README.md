@@ -14,7 +14,11 @@ Works with keyboard and mouse, a game controller (X-input layout, e.g. 8BitDo Pr
 - Parkour: vaulting, wall-running, web swinging, zip line, wingsuit-style gliding
 - Roller skates: carving, kickers, rail and rooftop-edge grinds, flips and combos
 - Squirrel form: climb any wall, tree or underside, survive any fall
+- A squirrel-sized motorcycle with boost, wheelies and bunny hops
+- Surfing on a wave-filled river (and over flooded streets)
 - Disasters with rescues (no fighting): building fires, river floods, tornadoes
 - Traffic, pedestrians, an elevated train you can ride, 20 rings to fly through against the clock
+- Cel-shaded hero with elbows and knees, and web-swing animations that alternate paws
+- Synthesized sound effects and an original generative synthwave score that follows the action (no audio files)
 
 Everything is in the single `index.html` file.

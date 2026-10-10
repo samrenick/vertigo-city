@@ -62,6 +62,10 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .go { align-self: flex-start; font-family: var(--display); font-weight: 800; font-size: 26px; letter-spacing: .12em; text-transform: uppercase; padding: 10px 28px 8px; background: var(--signal); color: #1a0d05; border: 0; cursor: pointer; }
 .go:hover { filter: brightness(1.1); }
 .go:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.sndrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.snd { font-family: var(--mono); font-size: 13px; padding: 6px 12px; background: transparent; color: var(--ink); border: 1px solid var(--ink-dim); cursor: pointer; }
+.snd:hover { border-color: var(--signal); } .snd:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.sndhint { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); }
 .best { font-family: var(--mono); font-size: 13px; color: var(--ink-dim); }
 .padmap summary { cursor: pointer; font-weight: 700; letter-spacing: .16em; font-size: 13px; color: var(--signal); text-transform: uppercase; }
 .padmap summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
@@ -78,6 +82,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #bSprint.on { background: var(--ink); color: #1a0d05; }
 #bGrab { right: 112px; bottom: calc(env(safe-area-inset-bottom, 0px) + 160px); border-color: #e9eef5; color: #e9eef5; }
 #bTrick { right: 200px; bottom: calc(env(safe-area-inset-bottom, 0px) + 30px); width: 60px; height: 60px; font-size: 12px; border-color: var(--signal); color: var(--signal); }
+#bBike { right: 96px; bottom: calc(env(safe-area-inset-bottom, 0px) + 350px); width: 60px; height: 60px; font-size: 12px; border-color: var(--signal); color: var(--signal); }
 #bSos { left: 24px; top: calc(env(safe-area-inset-top, 0px) + 260px); width: 56px; height: 56px; font-size: 12px; border-color: #7dff8a; color: #7dff8a; }
 #bForm { right: 24px; bottom: calc(env(safe-area-inset-bottom, 0px) + 350px); width: 60px; height: 60px; font-size: 12px; border-color: var(--signal); color: var(--signal); }
 #bSkate { right: 24px; bottom: calc(env(safe-area-inset-bottom, 0px) + 280px); width: 60px; height: 60px; font-size: 12px; }
@@ -130,6 +135,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   <button class="tbtn" id="bSkate" type="button">SKATE</button>
   <button class="tbtn" id="bForm" type="button">SQRL</button>
   <button class="tbtn" id="bSos" type="button">SOS</button>
+  <button class="tbtn" id="bBike" type="button">BIKE</button>
 </div>
 
 <div class="intro" id="intro">
@@ -154,6 +160,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
       <kbd>T</kbd><span>Turn into a squirrel and back, in a puff of fluff</span>
       <kbd>Run into a wall</kbd><span>Climb it. W/S up and down, A/D sideways, and you scramble onto the roof at the top</span>
       <kbd>Space · E</kbd><span>On a wall: leap off, or launch straight into a glide. Squirrels survive any fall</span>
+      <kbd>M</kbd><span>As a squirrel: hop on your motorcycle. Shift boosts and pops a wheelie</span>
       <kbd>Climb under things</kbd><span>Keep going at an overhang and he runs along the underside upside down: skybridges, construction floors, the train viaduct, bus shelters. Climb trees and sit in the treetops</span>
       <div class="sec">Roller skates</div>
       <kbd>G</kbd><span>Put your skates on or take them off</span>
@@ -161,6 +168,8 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
       <kbd>C</kbd><span>In the air: trick. Hold W for a frontflip, S for a backflip, A or D for a cork, nothing for a 360. Press again near the end to chain</span>
       <kbd>Land on rails</kbd><span>Grind rails, ledges and rooftop edges by landing on them while rolling along them. C on a rail switches grinds, Space hops off</span>
       <kbd>Combos</kbd><span>Tricks and grinds stack until you touch the ground. Land clean to bank the points; land mid-flip and you bail. The skatepark is one block from the start tower, and there's a kicker on its roof</span>
+      <div class="sec">Surfing</div>
+      <kbd>Land in the river</kbd><span>Fall, glide or jump into the Kessel River and you're up on a surfboard. Stick to carve, push forward to pump, ride down the waves for speed, A to launch off the lip (tricks work), ride into the bank to climb out. In a flood you can surf right over the streets</span>
       <div class="sec">Disasters and rescues</div>
       <kbd>Every few minutes</kbd><span>A fire, flood or tornado strikes. Follow the green arrow to people and animals in trouble, touch them to pick them up, and carry them to the blue drop-off. Squirrels can carry animals but not people</span>
       <kbd>N</kbd><span>Call in the next disaster now</span>
@@ -181,11 +190,17 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
         <kbd>X</kbd><span>Skate trick (with stick direction)</span>
         <kbd>Select</kbd><span>Skates on / off</span>
         <kbd>R3 (click right stick)</kbd><span>Squirrel form on / off</span>
+        <kbd>L3 as a squirrel</kbd><span>Motorcycle on / off (LB boosts and wheelies)</span>
         <kbd>LB</kbd><span>Sprint (hold)</span>
         <kbd>Y</kbd><span>Back to the last safe roof</span>
         <kbd>Start</kbd><span>Pause</span>
       </div>
     </details>
+    <div class="sndrow">
+      <button class="snd" id="tMusic" type="button">Music: on</button>
+      <button class="snd" id="tSfx" type="button">Sound effects: on</button>
+      <span class="sndhint">Controller: X music · Y sound</span>
+    </div>
     <p class="padnote" id="padNote">Using a controller? Press any button on it so the browser can see it.</p>
     <button class="go" id="go" type="button">Drop in</button>
     <div class="best" id="best"></div>
@@ -331,6 +346,8 @@ const half = NB / 2;
 // The Kessel River fills two block rows north of downtown; every north-south street crosses it on a bridge.
 const RIVER_Z0 = 4 * PERIOD + 10, RIVER_Z1 = 5 * PERIOD + 54;
 const overWater = (x, z) => z > RIVER_Z0 && z < RIVER_Z1;
+const RIVER_Y = -4.5; // calm water level, 3m below the bridge decks
+let riverMesh = null;
 const inRiverStreet = z => z > RIVER_Z0 && z < RIVER_Z1;
 const boxes = [];   // colliders {x0,y0,z0,x1,y1,z1}
 const CELL = 16, grid = new Map();
@@ -844,8 +861,12 @@ footprints.push([-1150, -760, -778, 760, 0, 'park']);
   for (const [z0, z1] of [[-1600, RIVER_Z0], [RIVER_Z1, 1600]]) {
     const m = new THREE.Mesh(quad(-1600, z0, 1600, z1, 0, PERIOD), groundMat); m.receiveShadow = true; scene.add(m);
   }
-  const waterMat = new THREE.MeshPhongMaterial({ color: 0x24404f, specular: 0xffb27a, shininess: 90, emissive: 0x0b1820 });
-  scene.add(new THREE.Mesh(quad(-1600, RIVER_Z0, 1600, RIVER_Z1, -2.2, PERIOD), waterMat));
+  const waterMat = new THREE.MeshPhongMaterial({ color: 0x24404f, specular: 0xffb27a, shininess: 90, emissive: 0x0b1820, flatShading: true });
+  { // a fine grid so the river can roll with waves
+    const g = new THREE.PlaneGeometry(3200, RIVER_Z1 - RIVER_Z0, 320, 10);
+    g.rotateX(-Math.PI / 2); g.translate(0, RIVER_Y, (RIVER_Z0 + RIVER_Z1) / 2);
+    riverMesh = new THREE.Mesh(g, waterMat); riverMesh.frustumCulled = false; scene.add(riverMesh);
+  }
   const onTop = { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 };
   const grassMat = new THREE.MeshLambertMaterial({ map: grassTexture(), ...onTop });
   for (const [x0, z0, x1, z1, y, c] of decals) { const m = new THREE.Mesh(quad(x0, z0, x1, z1, y + 0.01, PERIOD), new THREE.MeshLambertMaterial({ color: c, ...onTop })); m.receiveShadow = true; scene.add(m); }
@@ -1105,28 +1126,61 @@ const model = new THREE.Group(), trickPivot = new THREE.Group(), inner = new THR
 model.add(trickPivot); trickPivot.add(inner); scene.add(model);
 trickPivot.position.y = 0.95; inner.position.y = -0.95; trickPivot.rotation.order = 'YXZ'; // flips spin around his middle
 model.rotation.order = 'YXZ';
-const M = c => new THREE.MeshLambertMaterial({ color: c });
-const fur = M(0xb4562a), furDark = M(0x8f4220), cream = M(0xf0dcc0), tunic = M(0x3f5a35), tunicDark = M(0x334a2c);
+// cartoon (toon) shading in three bands, plus a little fur and fabric texture so nothing reads as flat plastic
+const toonRamp = (() => {
+  const t = new THREE.DataTexture(new Uint8Array([95, 175, 255]), 3, 1, THREE.LuminanceFormat);
+  t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
+})();
+function strokeTex(kind) {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 64);
+  if (kind === 'fur') for (let i = 0; i < 260; i++) { // short soft strands
+    const x = Math.random() * 64, y = Math.random() * 64;
+    g.strokeStyle = `rgba(60,30,10,${0.08 + Math.random() * 0.1})`; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + (Math.random() - 0.5) * 3, y + 3 + Math.random() * 4); g.stroke();
+  } else for (let i = 0; i < 64; i += 3) { // a faint weave
+    g.fillStyle = 'rgba(0,0,0,0.06)'; g.fillRect(i, 0, 1, 64); g.fillRect(0, i, 64, 1);
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3); t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+const furTex = strokeTex('fur'), clothTex = strokeTex('cloth');
+const M = (c, map) => new THREE.MeshToonMaterial({ color: c, gradientMap: toonRamp, map: map || null });
+const fur = M(0xb4562a, furTex), furDark = M(0x8f4220, furTex), cream = M(0xf0dcc0, furTex), tunic = M(0x3f5a35, clothTex), tunicDark = M(0x334a2c, clothTex);
 const leather = M(0x6b4226), leatherDark = M(0x4a2c18), brass = M(0xc8a35a), band = M(0x6b6650), leaf = M(0x7fb04a), black = M(0x1a1210);
 function part(geo, mat, x, y, z, parent) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; (parent || inner).add(m); return m; }
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-const ball = (r, sx = 1, sy = 1, sz = 1) => { const g = new THREE.SphereGeometry(r, 12, 9); g.scale(sx, sy, sz); return g; };
-
-// torso: green tunic, skirt, cream fur at the collar
-part(box(0.44, 0.56, 0.28), tunic, 0, 1.2, 0);
-part(box(0.5, 0.24, 0.32), tunicDark, 0, 0.86, 0);
-part(ball(1, 0.11, 0.06, 0.016), M(0xe6cfae), 0, 1.445, -0.137);
-const bibTip = part(new THREE.ConeGeometry(0.04, 0.07, 8), M(0xe6cfae), 0, 1.38, -0.139); bibTip.rotation.x = Math.PI; bibTip.scale.z = 0.3;
-// belt, buckle, pouches and the two crossed chest straps
-part(box(0.47, 0.07, 0.31), leather, 0, 1.0, 0);
-part(box(0.08, 0.06, 0.02), brass, 0, 1.0, -0.165);
-for (const s of [-1, 1]) {
-  part(box(0.12, 0.13, 0.08), leatherDark, s * 0.17, 0.92, -0.17);
-  const strap = part(box(0.055, 0.66, 0.02), leather, 0, 1.2, -0.148); strap.rotation.z = s * 0.62;
-  const back = part(box(0.055, 0.66, 0.02), leather, 0, 1.2, 0.148); back.rotation.z = s * 0.62;
-  part(box(0.19, 0.08, 0.26), leatherDark, s * 0.27, 1.5, 0); // shoulder guards
+const ball = (r, sx = 1, sy = 1, sz = 1) => { const g = new THREE.SphereGeometry(r, 14, 10); g.scale(sx, sy, sz); return g; };
+function capsule(r, len, mat, x, y, z, parent) { // a rounded limb segment along y
+  const g = new THREE.Group(); g.position.set(x, y, z); (parent || inner).add(g);
+  part(new THREE.CylinderGeometry(r, r, len, 14, 1, true), mat, 0, 0, 0, g);
+  part(ball(r), mat, 0, len / 2, 0, g); part(ball(r), mat, 0, -len / 2, 0, g);
+  return g;
 }
-const lf = part(box(0.11, 0.015, 0.07), leaf, -0.27, 1.55, -0.02); lf.rotation.y = 0.5; // leaf badge
+
+// torso: a shaped tunic (wider at the chest, nipped at the waist), flared skirt, cream fur at the collar
+{
+  const pts = [[0.001, 0.9], [0.19, 0.92], [0.212, 1.02], [0.218, 1.17], [0.245, 1.35], [0.225, 1.45], [0.14, 1.52], [0.001, 1.535]].map(([r, y]) => new THREE.Vector2(r, y));
+  const g = new THREE.LatheGeometry(pts, 18); g.scale(1, 1, 0.72);
+  part(g, tunic, 0, 0, 0);
+  const skirt = new THREE.CylinderGeometry(0.215, 0.275, 0.27, 18, 1, true); skirt.scale(1, 1, 0.76);
+  part(skirt, tunicDark, 0, 0.855, 0);
+  const hem = new THREE.TorusGeometry(0.272, 0.018, 6, 24); hem.rotateX(Math.PI / 2); hem.scale(1, 1, 0.76);
+  part(hem, M(0x2a3c24, clothTex), 0, 0.72, 0);
+}
+part(ball(1, 0.11, 0.065, 0.02), M(0xe6cfae, furTex), 0, 1.445, -0.155);
+const bibTip = part(new THREE.ConeGeometry(0.04, 0.07, 8), M(0xe6cfae, furTex), 0, 1.38, -0.158); bibTip.rotation.x = Math.PI; bibTip.scale.z = 0.3;
+// belt, buckle, pouches and the two crossed chest straps
+{ const belt = new THREE.TorusGeometry(0.214, 0.03, 8, 28); belt.rotateX(Math.PI / 2); belt.scale(1, 1, 0.73); part(belt, leather, 0, 1.0, 0); }
+part(box(0.075, 0.06, 0.02), brass, 0, 1.0, -0.172);
+for (const s of [-1, 1]) {
+  part(ball(1, 0.06, 0.07, 0.045), leatherDark, s * 0.16, 0.92, -0.165);
+  const strap = part(box(0.05, 0.68, 0.02), leather, 0, 1.2, -0.168); strap.rotation.z = s * 0.62;
+  const back = part(box(0.05, 0.68, 0.02), leather, 0, 1.2, 0.168); back.rotation.z = s * 0.62;
+  const guard = part(new THREE.SphereGeometry(0.11, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), leatherDark, s * 0.27, 1.43, 0); guard.scale.set(1.05, 0.75, 1.15); // rounded shoulder guards
+  part(ball(0.014), brass, s * 0.27, 1.515, -0.06);
+}
+const lf = part(box(0.11, 0.015, 0.07), leaf, -0.27, 1.53, -0.03); lf.rotation.set(0.15, 0.5, 0); // leaf badge
 
 // head: round fur head on a neck, eye rings, brows, snout with buck teeth, oval tufted ears, headband
 const headY = 1.69;
@@ -1155,32 +1209,36 @@ for (const s of [-1, 1]) {
 }
 
 function limb(x, y) { const pivot = new THREE.Group(); pivot.position.set(x, y, 0); inner.add(pivot); return pivot; }
-// arms: short tunic sleeve, furry forearm, leather bracer, paw (the web shoots from 0.68 below the shoulder)
+// arms: tunic sleeve, an elbow, furry forearm with a leather bracer, a paw with a thumb (webs shoot from the paw)
 const armL = limb(-0.29, 1.46), armR = limb(0.29, 1.46);
-for (const a of [armL, armR]) {
-  part(box(0.15, 0.22, 0.15), tunic, 0, -0.1, 0, a);
-  part(box(0.11, 0.46, 0.11), fur, 0, -0.38, 0, a);
-  part(box(0.135, 0.17, 0.135), leather, 0, -0.47, 0, a);
-  part(ball(0.065, 1, 1.1, 1), furDark, 0, -0.64, 0, a);
+for (const [a, s] of [[armL, -1], [armR, 1]]) {
+  capsule(0.068, 0.15, tunic, 0, -0.13, 0, a);
+  const elbow = new THREE.Group(); elbow.position.y = -0.3; a.add(elbow); a.elbow = elbow;
+  capsule(0.05, 0.2, fur, 0, -0.13, 0, elbow);
+  part(new THREE.CylinderGeometry(0.061, 0.056, 0.13, 14), leather, 0, -0.14, 0, elbow);
+  part(ball(0.055, 1, 1.05, 0.9), furDark, 0, -0.33, 0, elbow);
+  part(ball(0.022), furDark, -s * 0.038, -0.31, -0.035, elbow);
+  const hand = new THREE.Object3D(); hand.position.y = -0.36; elbow.add(hand); a.hand = hand;
 }
-// legs: thick haunch, fur shin, cuffed leather boots with a long squirrel foot
+// legs: thick squirrel haunch, a knee, fur shin, cuffed leather boot with a long squirrel foot
 const legL = limb(-0.12, 0.95), legR = limb(0.12, 0.95);
 for (const l of [legL, legR]) {
-  part(ball(0.11, 1, 2.2, 1.15), fur, 0, -0.2, 0, l);
-  part(box(0.12, 0.3, 0.13), fur, 0, -0.5, 0, l);
-  part(box(0.16, 0.28, 0.18), leather, 0, -0.76, 0, l);
-  part(box(0.2, 0.07, 0.21), leatherDark, 0, -0.6, 0, l);
-  part(box(0.15, 0.09, 0.3), leatherDark, 0, -0.875, -0.07, l);
+  part(ball(0.105, 1, 2.0, 1.15), fur, 0, -0.2, 0, l);
+  const knee = new THREE.Group(); knee.position.y = -0.44; l.add(knee); l.knee = knee;
+  capsule(0.058, 0.16, fur, 0, -0.1, 0, knee);
+  part(new THREE.CylinderGeometry(0.086, 0.08, 0.24, 16), leather, 0, -0.33, 0, knee);
+  const cuff = part(new THREE.TorusGeometry(0.088, 0.024, 8, 18), leatherDark, 0, -0.21, 0, knee); cuff.rotation.x = Math.PI / 2;
+  part(ball(1, 0.078, 0.052, 0.17), leatherDark, 0, -0.44, -0.06, knee);
 }
-// quad roller skates: plate, four orange wheels, toe stop
+// quad roller skates: plate, four orange wheels, toe stop (on the lower leg so they follow the knee)
 const skates = [];
 for (const l of [legL, legR]) {
-  const sk = new THREE.Group(); l.add(sk); sk.visible = false; skates.push(sk);
-  part(box(0.15, 0.035, 0.3), M(0x2b2d33), 0, -0.94, -0.07, sk);
+  const sk = new THREE.Group(); l.knee.add(sk); sk.visible = false; skates.push(sk);
+  part(box(0.15, 0.035, 0.3), M(0x2b2d33), 0, -0.5, -0.07, sk);
   for (const zz of [-0.18, 0.04]) for (const xx of [-0.058, 0.058]) {
-    const w = part(new THREE.CylinderGeometry(0.048, 0.048, 0.045, 12), M(0xff6a1f), xx, -0.99, zz, sk); w.rotation.z = Math.PI / 2;
+    const w = part(new THREE.CylinderGeometry(0.048, 0.048, 0.045, 12), M(0xff6a1f), xx, -0.55, zz, sk); w.rotation.z = Math.PI / 2;
   }
-  part(new THREE.CylinderGeometry(0.03, 0.035, 0.05, 8), M(0xe9e3d6), 0, -0.955, -0.245, sk);
+  part(new THREE.CylinderGeometry(0.03, 0.035, 0.05, 8), M(0xe9e3d6), 0, -0.515, -0.245, sk);
 }
 
 // headband ties flutter with speed
@@ -1273,11 +1331,44 @@ const cWingGeo = new THREE.BufferGeometry();
 }
 const cWings = new THREE.Mesh(cWingGeo, new THREE.MeshLambertMaterial({ color: 0xc0703f, side: THREE.DoubleSide }));
 cBody.add(cWings);
+// a squirrel-sized motorcycle (about 70cm long) and a helmet for the rider
+const bike = new THREE.Group(); bike.visible = false; model.add(bike);
+const bikeWheels = [];
+{
+  const add = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; (parent || bike).add(m); return m; };
+  const paint = M(0xff6a1f), chrome = M(0xc9ccd1), rubber = M(0x18181c);
+  for (const z of [-0.29, 0.27]) {
+    const w = new THREE.Group(); w.position.set(0, 0.12, z); bike.add(w);
+    const tyre = add(new THREE.TorusGeometry(0.095, 0.03, 8, 20), rubber, 0, 0, 0, w); tyre.rotation.y = Math.PI / 2;
+    const hub = add(new THREE.CylinderGeometry(0.035, 0.035, 0.05, 10), chrome, 0, 0, 0, w); hub.rotation.z = Math.PI / 2;
+    for (let k = 0; k < 3; k++) { const sp = add(box(0.012, 0.17, 0.012), chrome, 0, 0, 0, w); sp.rotation.x = k * Math.PI / 3; }
+    bikeWheels.push(w);
+  }
+  add(box(0.09, 0.08, 0.42), M(0x2b2d33), 0, 0.2, 0);                  // frame
+  add(ball(1, 0.075, 0.06, 0.12), paint, 0, 0.3, -0.1);                 // tank
+  add(box(0.08, 0.03, 0.2), M(0x1c1c20), 0, 0.31, 0.1);                 // seat
+  add(box(0.1, 0.05, 0.14), paint, 0, 0.27, 0.24);                      // tail
+  const fork = add(box(0.03, 0.26, 0.03), chrome, 0, 0.24, -0.25); fork.rotation.x = -0.35;
+  add(box(0.26, 0.02, 0.02), chrome, 0, 0.37, -0.21);                   // handlebars
+  add(ball(0.03), new THREE.MeshBasicMaterial({ color: 0xfff1c9 }), 0, 0.31, -0.3); // headlight
+  const pipe = add(new THREE.CylinderGeometry(0.018, 0.022, 0.26, 8), chrome, 0.07, 0.15, 0.14); pipe.rotation.x = Math.PI / 2 + 0.3;
+}
+const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.098, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), M(0xff6a1f));
+helmet.position.set(0, 0.012, 0.005); helmet.visible = false; helmet.castShadow = true; cHead.add(helmet);
+const visor = new THREE.Mesh(box(0.12, 0.035, 0.02), M(0x2a3a4a)); visor.position.set(0, 0.03, -0.088); helmet.add(visor);
+
 let cPhase = 0;
 function poseCritter(dt, moving, speed, mode) {
   cPhase += dt * (moving ? 4 + speed * 1.1 : 1.5);
   const s = Math.sin(cPhase), gallop = moving ? 1 : 0;
   cWings.visible = mode === 'glide';
+  if (mode === 'bike') { // hunched over the tank, paws on the bars, feet on the pegs
+    cBody.position.y = 0;
+    cLegs.forEach((l, i) => l.rotation.set(i < 2 ? -1.05 : -0.55, 0, 0));
+    cTail.rotation.x = -0.75 - Math.min(0.5, speed * 0.02) + Math.sin(cPhase * 3) * 0.04;
+    cHead.rotation.x = 0.2;
+    return;
+  }
   if (mode === 'glide') {
     cBody.position.y = 0;
     cLegs.forEach((l, i) => l.rotation.set(0, 0, (i % 2 ? 1 : -1) * 1.35));
@@ -1306,7 +1397,24 @@ function puff(at) {
 }
 const cBasis = new THREE.Matrix4(), cX = new THREE.Vector3(), cY = new THREE.Vector3(), cZ = new THREE.Vector3();
 function poseSquirrel(dt, hs, speed) {
-  critter.rotation.set(0, 0, 0);
+  critter.rotation.set(0, 0, 0); critter.position.set(0, 0, 0);
+  bike.visible = P.bike; helmet.visible = P.bike;
+  if (P.mode === 'surf') {
+    model.rotation.set(0, P.faceYaw, clamp(P.surfTurn * hs * 0.03, -0.4, 0.4));
+    poseCritter(dt, false, hs, 'foot');
+    return;
+  }
+  if (P.bike) { // lean into turns, pop a wheelie on the boost
+    bikeWheels.forEach(w => { w.rotation.x -= hs / 0.125 * dt; });
+    const turn = clamp((P.bikeTurn || 0) * hs * 0.06, -0.6, 0.6);
+    P.bikeLean = lerp(P.bikeLean || 0, P.onGround ? -turn : 0, Math.min(1, dt * 8));
+    P.wheelie = lerp(P.wheelie || 0, P.bikeBoost && P.onGround && hs < 22 ? 0.4 : !P.onGround ? -0.1 : 0, Math.min(1, dt * 5));
+    model.rotation.set(P.wheelie, P.faceYaw, P.bikeLean);
+    model.position.y += Math.max(0, Math.sin(P.wheelie)) * 0.27;
+    critter.position.set(0, 0.2, 0.07); critter.rotation.set(-0.12, 0, 0);
+    poseCritter(dt, false, hs, 'bike');
+    return;
+  }
   if (P.mode === 'glide') { model.rotation.set(P.pitch, P.yaw, 0); critter.rotation.z = -P.roll; poseCritter(dt, false, speed, 'glide'); return; }
   if (P.mode === 'ceiling') { // feet on the ceiling, back toward the ground
     cY.set(0, -1, 0); cZ.set(Math.sin(P.faceYaw), 0, Math.cos(P.faceYaw)); cX.crossVectors(cY, cZ);
@@ -1330,6 +1438,29 @@ function poseSquirrel(dt, hs, speed) {
   model.rotation.set(0, P.faceYaw, 0);
   poseCritter(dt, P.onGround && hs > 0.5, hs, P.onGround ? 'foot' : 'air');
 }
+const swU = new THREE.Vector3(), swF = new THREE.Vector3();
+function poseSwing(dt) {
+  const A = P.anchor.pt, p = P.pos, v = P.vel;
+  swU.set(A.x - p.x, A.y - (p.y + 1.4), A.z - p.z).normalize();          // up the web
+  swF.copy(v).addScaledVector(swU, -v.dot(swU));                          // direction of travel across it
+  if (swF.lengthSq() < 0.5) swF.set(-Math.sin(P.faceYaw), 0, -Math.cos(P.faceYaw)).addScaledVector(swU, -(-Math.sin(P.faceYaw) * swU.x - Math.cos(P.faceYaw) * swU.z));
+  swF.normalize();
+  cY.copy(swU); cZ.copy(swF).negate(); cX.crossVectors(cY, cZ);
+  cBasis.makeBasis(cX, cY, cZ); model.quaternion.setFromRotationMatrix(cBasis);
+  const holdL = P.mode === 'swing' && P.swingHand === 'L', hold = holdL ? armL : armR, free = holdL ? armR : armL, fs = holdL ? 1 : -1;
+  hold.rotation.set(-3.05, 0, holdL ? -0.1 : 0.1); hold.elbow.rotation.x = P.webT < 1 ? 0 : 0.12;
+  if (P.mode === 'grapple') { // reeling in hand over hand, legs trailing
+    free.rotation.set(-2.9, 0, fs * 0.15); free.elbow.rotation.x = 0.5 + Math.sin(P.anim += dt * 14) * 0.3;
+    legL.rotation.set(-0.3, 0, -0.06); legR.rotation.set(-0.1, 0, 0.06);
+    legL.knee.rotation.x = -0.35; legR.knee.rotation.x = -0.8;
+    return;
+  }
+  // legs trail on the way down and kick through on the way up; the free paw reaches for the next swing
+  const a = clamp(v.y * 0.06, -0.9, 0.9);
+  legL.rotation.set(a + 0.25, 0, -0.08); legR.rotation.set(a - 0.2, 0, 0.08);
+  legL.knee.rotation.x = -0.25 - Math.abs(a) * 0.7; legR.knee.rotation.x = -0.75 - Math.max(0, a) * 0.6;
+  free.rotation.set(1.1 + Math.sin(P.anim += dt * 3) * 0.15, 0, fs * 0.6); free.elbow.rotation.x = 0.5;
+}
 function updatePuff(dt) {
   if (puffLife <= 0) { puffMat.opacity = 0; return; }
   puffLife -= dt; puffMat.opacity = Math.max(0, puffLife / 0.6) * 0.9;
@@ -1348,10 +1479,11 @@ const P = {
   mantleFrom: new THREE.Vector3(), mantleTo: new THREE.Vector3(), mantleT: 0,
   safe: new THREE.Vector3(), safeYaw: 0, safeTimer: 0, anim: 0,
   ride: null, anchor: null, knock: false,
-  swingL: 0, swingL0: 0, swingRetry: 0, swingWasHeld: false, webT: 1,
+  surfAir: false, surfTurn: 0, swingL: 0, swingL0: 0, swingRetry: 0, swingWasHeld: false, webT: 1,
   skates: store.get('vertigo-skates') === '1', trick: null, trickQueue: null, grind: null, grindCool: 0, stun: 0,
   onRamp: null, rampVy: 0, landBox: null,
-  form: 'human', climbCool: 0, climbTop: 0, skatesSaved: false, ceilBox: null, ceilHit: null
+  form: 'human', climbCool: 0, climbTop: 0, skatesSaved: false, ceilBox: null, ceilHit: null,
+  bike: false, bikeTurn: 0, bikeLean: 0, wheelie: 0, bikeBoost: false
 };
 // web strand: a thin tube from the hand to the anchor, plus a splat where it sticks
 const webMat = new THREE.MeshBasicMaterial({ color: 0xe9eef5, fog: false });
@@ -1418,6 +1550,7 @@ function addSplat(pt, nx, ny, nz) {
 let camYaw = Math.PI * 0.75, camPitch = 0.28, camDist = 6;
 const spawnPos = new THREE.Vector3(PERIOD / 2 - 6, spawnTop, PERIOD / 2 + 6);
 function placeAt(v, yaw) {
+  P.surfAir = false;
   P.pos.copy(v); P.prevY = v.y; P.vel.set(0, 0, 0); P.mode = 'foot'; P.onGround = true;
   P.faceYaw = camYaw = yaw; P.wallN = null;
 }
@@ -1437,6 +1570,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyG' && !e.repeat) toggleSkates();
   if (e.code === 'KeyT' && !e.repeat && !crash) transform();
   if (e.code === 'KeyN' && !e.repeat) callDisaster();
+  if (e.code === 'KeyM' && !e.repeat && !crash) toggleBike();
   if (e.code === 'KeyR' && !crash) toSafe();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -1492,6 +1626,8 @@ function pollPad(dt) {
   const down = i => btn(i) && !pad.prev[i];
   if (!playing) {
     if (down(0) || down(9)) startGame(true);
+    if (down(2)) { startAudio(); setSound('music', !SND.music); }
+    if (down(3)) { startAudio(); setSound('sfx', !SND.sfx); }
   } else {
     if (down(9)) pause();
     if (down(0)) jumpPressed = true;
@@ -1501,7 +1637,7 @@ function pollPad(dt) {
     if (down(8)) toggleSkates();
     if (down(11) && !crash) transform();
     if (down(3) && !crash) toSafe();
-    if (down(10)) pad.sprintToggle = !pad.sprintToggle;
+    if (down(10)) { if (P.form === 'squirrel') toggleBike(); else pad.sprintToggle = !pad.sprintToggle; }
     const lx = deadzone(gp.axes[0] || 0), ly = deadzone(gp.axes[1] || 0);
     if (down(12)) callDisaster();
     if (stick.id === null) { stick.x = lx; stick.y = -ly; }
@@ -1559,23 +1695,179 @@ if (coarse) {
   $('bSkate').addEventListener('touchstart', e => { toggleSkates(); e.preventDefault(); }, { passive: false });
   $('bForm').addEventListener('touchstart', e => { if (!crash) transform(); e.preventDefault(); }, { passive: false });
   $('bSos').addEventListener('touchstart', e => { callDisaster(); e.preventDefault(); }, { passive: false });
+  $('bBike').addEventListener('touchstart', e => { toggleBike(); e.preventDefault(); }, { passive: false });
   $('bSprint').addEventListener('touchstart', e => { touchSprint = !touchSprint; $('bSprint').classList.toggle('on', touchSprint); e.preventDefault(); }, { passive: false });
 }
 
-// ---------- audio: wind that rises with speed ----------
+// ---------- audio: every sound is synthesized live (no audio files) ----------
+// Mixer: sfx + music buses -> master -> gentle compressor. Settings are remembered per player.
 let audio = null;
+const SND = { music: store.get('vertigo-music') !== '0', sfx: store.get('vertigo-sfx') !== '0' };
+const MUSIC_VOL = 0.5;
 function startAudio() {
-  if (audio) { audio.ctx.resume && audio.ctx.resume(); return; }
+  if (audio) { if (audio.ctx.resume) audio.ctx.resume(); return; }
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), d = buf.getChannelData(0);
-    let last = 0; for (let i = 0; i < d.length; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last * 3.5; }
-    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
-    const filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 400;
-    const gain = ctx.createGain(); gain.gain.value = 0;
-    src.connect(filt).connect(gain).connect(ctx.destination); src.start();
-    audio = { ctx, filt, gain };
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4; comp.connect(ctx.destination);
+    const master = ctx.createGain(); master.gain.value = 0.9; master.connect(comp);
+    const sfx = ctx.createGain(); sfx.gain.value = SND.sfx ? 1 : 0; sfx.connect(master);
+    const music = ctx.createGain(); music.gain.value = SND.music ? MUSIC_VOL : 0; music.connect(master);
+    const echo = ctx.createDelay(1); echo.delayTime.value = 0.4; // dotted-eighth-ish echo on the lead
+    const echoFb = ctx.createGain(); echoFb.gain.value = 0.32;
+    echo.connect(echoFb).connect(echo); echo.connect(music);
+    const n = ctx.sampleRate * 2, white = ctx.createBuffer(1, n, ctx.sampleRate), brown = ctx.createBuffer(1, n, ctx.sampleRate);
+    const wd = white.getChannelData(0), bd = brown.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < n; i++) { wd[i] = Math.random() * 2 - 1; last = (last + 0.02 * wd[i]) / 1.02; bd[i] = last * 3.5; }
+    const loop = (buffer, type, freq, q) => { // a looping filtered noise bed with its own volume
+      const src = ctx.createBufferSource(); src.buffer = buffer; src.loop = true;
+      const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q || 1;
+      const g = ctx.createGain(); g.gain.value = 0;
+      src.connect(f).connect(g).connect(sfx); src.start();
+      return { f, g };
+    };
+    const eng = ctx.createOscillator(); eng.type = 'sawtooth'; eng.frequency.value = 60;
+    const engF = ctx.createBiquadFilter(); engF.type = 'lowpass'; engF.frequency.value = 900;
+    const engG = ctx.createGain(); engG.gain.value = 0;
+    eng.connect(engF).connect(engG).connect(sfx); eng.start();
+    audio = {
+      ctx, master, sfx, music, echo, white,
+      wind: loop(brown, 'lowpass', 400), roll: loop(white, 'bandpass', 900, 1.4), grind: loop(white, 'bandpass', 3200, 9),
+      wash: loop(white, 'lowpass', 1200), storm: loop(brown, 'lowpass', 140), eng, engG
+    };
+    MUS.next = ctx.currentTime + 0.1;
   } catch (e) { audio = null; }
+}
+function setSound(kind, on) {
+  SND[kind] = on; store.set('vertigo-' + kind, on ? '1' : '0');
+  if (audio) audio[kind].gain.setTargetAtTime(on ? (kind === 'music' ? MUSIC_VOL : 1) : 0, audio.ctx.currentTime, 0.05);
+  $('tMusic').textContent = 'Music: ' + (SND.music ? 'on' : 'off'); $('tSfx').textContent = 'Sound effects: ' + (SND.sfx ? 'on' : 'off');
+}
+
+// one-shot building blocks: a pitched tone and a filtered noise burst, both with quick envelopes
+function tone(freq, dur, type, vol, slideTo, when, bus) {
+  if (!audio) return;
+  const c = audio.ctx, t = c.currentTime + (when || 0);
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(bus || audio.sfx); o.start(t); o.stop(t + dur + 0.05);
+}
+function noiseHit(dur, type, f0, f1, vol, q, when, bus) {
+  if (!audio) return;
+  const c = audio.ctx, t = c.currentTime + (when || 0);
+  const src = c.createBufferSource(); src.buffer = audio.white;
+  const f = c.createBiquadFilter(); f.type = type; f.Q.value = q || 1; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(bus || audio.sfx); src.start(t, Math.random()); src.stop(t + dur + 0.05);
+}
+const sfx = {
+  jump: () => { tone(240, 0.12, 'triangle', 0.1, 480); noiseHit(0.1, 'highpass', 1800, 3500, 0.04); },
+  land: v => { const k = clamp(v / 25, 0.06, 0.45); noiseHit(0.1 + k * 0.2, 'lowpass', 400, 70, k); tone(95, 0.15, 'sine', k * 0.7, 45); },
+  step: () => noiseHit(0.045, 'bandpass', 1500, 800, 0.03, 2),
+  thwip: () => { noiseHit(0.13, 'bandpass', 5000, 1300, 0.2, 3.5); tone(1600, 0.07, 'sine', 0.05, 700); },
+  whoosh: () => noiseHit(0.2, 'bandpass', 700, 1500, 0.03, 1.5),
+  zip: () => { tone(180, 0.45, 'sawtooth', 0.04, 820); noiseHit(0.45, 'bandpass', 900, 3000, 0.05, 2); },
+  trick: () => { tone(880, 0.09, 'triangle', 0.07); tone(1320, 0.12, 'triangle', 0.06, null, 0.06); },
+  bank: k => [659, 880, 1047, 1319, 1568].slice(0, clamp(k + 1, 2, 5)).forEach((f, i) => tone(f, 0.16, 'triangle', 0.08, null, i * 0.06)),
+  bail: () => { tone(320, 0.35, 'sawtooth', 0.06, 85); noiseHit(0.25, 'lowpass', 500, 90, 0.2); },
+  ring: () => [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.22, 'triangle', 0.08, null, i * 0.055)),
+  pickup: () => { tone(520, 0.09, 'sine', 0.12, 980); tone(980, 0.08, 'triangle', 0.05, null, 0.07); },
+  saved: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.24, 'triangle', 0.09, null, i * 0.085)),
+  honk: () => { tone(392, 0.28, 'square', 0.05); tone(494, 0.28, 'square', 0.04); },
+  poof: () => { noiseHit(0.32, 'bandpass', 700, 3200, 0.14, 0.8); tone(280, 0.22, 'sine', 0.08, 720); },
+  splash: () => { noiseHit(0.55, 'lowpass', 3500, 350, 0.28); noiseHit(0.3, 'highpass', 3000, 6000, 0.06, 1, 0.05); },
+  wipeout: () => { noiseHit(0.45, 'lowpass', 700, 60, 0.42); tone(230, 0.6, 'sawtooth', 0.05, 50); },
+  bonk: () => { tone(170, 0.15, 'square', 0.1, 80); noiseHit(0.12, 'lowpass', 900, 200, 0.2); },
+  grab: () => noiseHit(0.06, 'bandpass', 2500, 1200, 0.05, 3),
+  click: () => tone(1200, 0.04, 'square', 0.04),
+  alarm: type => {
+    if (type === 'fire') for (let i = 0; i < 4; i++) tone(i % 2 ? 960 : 720, 0.42, 'sawtooth', 0.035, i % 2 ? 720 : 960, i * 0.42);
+    else if (type === 'flood') { tone(110, 1.4, 'sawtooth', 0.06, 104); tone(165, 1.4, 'sawtooth', 0.04, 156); }
+    else { tone(320, 1.6, 'sine', 0.07, 880); tone(880, 1.6, 'sine', 0.07, 320, 1.6); }
+  }
+};
+
+// ---------- music: an original, generative synthwave score that follows the action ----------
+// 16th-note sequencer in A minor. Pads and bass always; hats, kick, snare and a lead arpeggio fade in with energy.
+// Disasters switch to a tense progression and a faster tempo.
+const MUS = { step: 0, next: 0, energy: 0.15, tense: false };
+const midi = m => 440 * Math.pow(2, (m - 69) / 12);
+const CHORDS = {
+  calm: [{ root: 45, tones: [57, 60, 64] }, { root: 41, tones: [57, 60, 65] }, { root: 48, tones: [55, 60, 64] }, { root: 43, tones: [55, 59, 62] }],      // Am F C G
+  tense: [{ root: 45, tones: [57, 60, 64] }, { root: 38, tones: [57, 62, 65] }, { root: 40, tones: [56, 59, 64] }, { root: 45, tones: [57, 60, 64] }]     // Am Dm E Am
+};
+function kick(t) { const c = audio.ctx, o = c.createOscillator(), g = c.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14); g.gain.setValueAtTime(0.85, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.28); o.connect(g).connect(audio.music); o.start(t); o.stop(t + 0.3); }
+function snare(t) { noiseHit(0.18, 'highpass', 1800, 1200, 0.32, 0.8, t - audio.ctx.currentTime, audio.music); tone(190, 0.08, 'triangle', 0.15, 140, t - audio.ctx.currentTime, audio.music); }
+function hat(t, v) { noiseHit(0.035, 'highpass', 7500, 9000, v, 1, t - audio.ctx.currentTime, audio.music); }
+function synth(t, f, dur, type, vol, cutoff, bus) {
+  const c = audio.ctx, o = c.createOscillator(), fl = c.createBiquadFilter(), g = c.createGain();
+  o.type = type; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.setValueAtTime(cutoff * 2.5, t); fl.frequency.exponentialRampToValueAtTime(cutoff, t + dur * 0.6);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(fl).connect(g).connect(bus || audio.music); o.start(t); o.stop(t + dur + 0.05);
+}
+function padChord(t, tones, dur) {
+  const c = audio.ctx;
+  for (const m of tones) for (const det of [-7, 7]) {
+    const o = c.createOscillator(), fl = c.createBiquadFilter(), g = c.createGain();
+    o.type = 'sawtooth'; o.frequency.value = midi(m); o.detune.value = det; fl.type = 'lowpass'; fl.frequency.value = MUS.tense ? 1400 : 950;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.03, t + 0.5); g.gain.setValueAtTime(0.03, t + dur - 0.4); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    o.connect(fl).connect(g).connect(audio.music); o.start(t); o.stop(t + dur + 0.05);
+  }
+}
+function playStep(i, t, sixteenth) {
+  const bar = Math.floor(i / 16) % 4, s = i % 16, e = MUS.energy, ch = (MUS.tense ? CHORDS.tense : CHORDS.calm)[bar];
+  if (s === 0) padChord(t, ch.tones, sixteenth * 16);
+  if (e > 0.2 && [0, 3, 6, 8, 11, 14].includes(s)) synth(t, midi(ch.root + (s === 6 || s === 14 ? 12 : 0)), sixteenth * 1.8, 'sawtooth', 0.16, 280);
+  if (e > 0.3 && s % 2 === 0) hat(t, s % 4 === 2 ? 0.07 : 0.04);
+  if (e > 0.75 && s % 2 === 1) hat(t, 0.025);
+  if (e > 0.4 && (s === 0 || s === 8 || (e > 0.7 && (s === 4 || s === 12)) || (s === 10 && i % 32 >= 16))) kick(t);
+  if (e > 0.5 && (s === 4 || s === 12)) snare(t);
+  if (e > 0.6) { // lead arpeggio over the chord, an octave up, with echo
+    const pat = [0, 1, 2, 1, 0, 2, 1, 2], m = ch.tones[pat[s % 8]] + 12 + (s >= 8 && bar % 2 ? 12 : 0);
+    if (s % 2 === 0 || e > 0.85) { synth(t, midi(m), sixteenth * 1.4, 'square', 0.045, 1800); synth(t, midi(m), sixteenth * 1.4, 'square', 0.02, 1800, audio.echo); }
+  }
+}
+
+// keep the loops, the music and the spot effects in step with the game each frame
+let stepPhase = 0, crackleT = 0;
+function updateAudio(dt, speed, hs) {
+  if (!audio) return;
+  const c = audio.ctx, now = c.currentTime, p = P.pos, set = (prm, v, k) => prm.setTargetAtTime(v, now, k || 0.08);
+  const live = playing && !crash;
+  // wind: only in the air at real speed, and kept low so it never drowns things out
+  set(audio.wind.g.gain, live && !P.onGround && speed > 15 ? Math.pow(clamp((speed - 15) / 45, 0, 1), 2) * 0.08 : 0, 0.25);
+  set(audio.wind.f.frequency, 200 + speed * 12, 0.25);
+  const rolling = live && P.skates && P.onGround && P.mode === 'foot';
+  set(audio.roll.g.gain, rolling ? Math.min(1, hs / 15) * 0.12 : 0); set(audio.roll.f.frequency, 500 + hs * 45);
+  set(audio.grind.g.gain, live && P.mode === 'grind' ? 0.1 : 0, 0.03);
+  set(audio.wash.g.gain, live && P.mode === 'surf' ? 0.05 + Math.min(0.12, hs * 0.008) : 0); set(audio.wash.f.frequency, 700 + hs * 70);
+  const a = DIS.active, stormD = a && a.type === 'tornado' && funnel ? Math.hypot(p.x - a.pos.x, p.z - a.pos.z) : 1e9;
+  set(audio.storm.g.gain, live ? clamp(1 - stormD / 260, 0, 1) * 0.6 * (a ? a.alive : 0) : 0, 0.3);
+  set(audio.engG.gain, live && P.bike ? 0.045 : 0); set(audio.eng.frequency, 55 + hs * 7 + (P.bikeBoost ? 25 : 0), 0.06);
+  // footsteps on the run cycle
+  if (live && P.onGround && P.mode === 'foot' && !P.skates && !P.bike && hs > 1.5) {
+    const ph = Math.floor(P.anim / Math.PI);
+    if (ph !== stepPhase) { stepPhase = ph; if (P.form === 'human') sfx.step(); else noiseHit(0.03, 'bandpass', 2600, 1800, 0.02, 2); }
+  }
+  // the fire crackles when you're near it
+  if (live && a && a.type === 'fire' && !a.ending && (crackleT -= dt) <= 0) {
+    crackleT = 0.05 + Math.random() * 0.12;
+    const d = Math.hypot(p.x - a.cx, p.z - a.cz);
+    if (d < 140) noiseHit(0.03 + Math.random() * 0.05, 'bandpass', 1500 + Math.random() * 2500, 800, 0.12 * (1 - d / 140), 2);
+  }
+  // music energy follows what you're doing; disasters make it tense
+  MUS.tense = !!(a && !a.ending);
+  let want = 0.15 + Math.min(0.45, speed / 40);
+  if (P.mode === 'swing' || P.mode === 'glide' || P.mode === 'grind' || P.mode === 'surf' || P.bike) want += 0.35;
+  if (MUS.tense) want = Math.max(want, 0.65);
+  if (!playing) want = 0.12;
+  MUS.energy += (clamp(want, 0, 1) - MUS.energy) * Math.min(1, dt * (want > MUS.energy ? 0.8 : 0.25));
+  const sixteenth = 60 / (MUS.tense ? 124 : 108) / 4;
+  if (MUS.next < now - 1) MUS.next = now + 0.05; // the tab was hidden: don't play catch-up
+  if (SND.music) while (MUS.next < now + 0.2) { playStep(MUS.step, MUS.next, sixteenth); MUS.next += sixteenth; MUS.step++; }
+  else MUS.next = now + 0.05;
 }
 
 // ---------- physics ----------
@@ -1599,7 +1891,7 @@ function collide() {
   if (p.y <= 0 && !overWater(p.x, p.z)) { landV = -v.y; p.y = 0; if (v.y < 0) v.y = 0; P.onGround = true; }
   P.swimming = false;
   const wl = floodLevel(p.x, p.z);
-  if (wl > -2) {
+  if (wl > -2 && P.mode !== 'surf') {
     const depth = P.form === 'squirrel' ? 0.25 : 1.2;
     if (p.y < wl - depth) { p.y = wl - depth; if (v.y < 0) v.y = 0; P.onGround = true; }
     if (p.y <= wl - depth + 0.05) P.swimming = true;
@@ -1640,6 +1932,7 @@ function collide() {
 }
 
 function deploy() {
+  sfx.whoosh();
   const sp = P.vel.length();
   const hs = Math.hypot(P.vel.x, P.vel.z);
   P.mode = 'glide';
@@ -1721,11 +2014,11 @@ function findSwingAnchor() {
 function startSwing(A) {
   const p = P.pos, v = P.vel;
   if (P.onGround || p.y - groundBelow(p.x, p.y, p.z) < 1) { v.y = Math.max(v.y, 9); P.onGround = false; } // hop into the swing near the ground
-  P.mode = 'swing'; P.anchor = A;
+  P.mode = 'swing'; P.anchor = A; P.swingHand = P.swingHand === 'R' ? 'L' : 'R'; // alternate paws each web
   P.swingL = P.swingL0 = A.pt.distanceTo(swO.set(p.x, p.y + 1.5, p.z));
   P.webT = 0;
   addSplat(A.pt, A.nx, A.ny, A.nz);
-  rumble(0, 0.35, 60);
+  rumble(0, 0.35, 60); sfx.thwip();
 }
 function grappleArrive() {
   const A = P.anchor, p = P.pos, v = P.vel;
@@ -1753,27 +2046,28 @@ function showCombo() {
   const n = combo.parts.length;
   $('combo').textContent = n ? combo.parts.slice(-5).join(' + ') + (n > 1 ? `  ×${n}` : '') : '';
 }
-function addCombo(name, pts) { combo.parts.push(name); combo.score += pts; showCombo(); }
+function addCombo(name, pts) { combo.parts.push(name); combo.score += pts; showCombo(); sfx.trick(); }
 function dropCombo() { combo.parts.length = 0; combo.score = 0; showCombo(); }
 function bankCombo() {
   const n = combo.parts.length; if (!n) return;
   const pts = Math.round(combo.score * n);
-  styleTotal += pts; $('styleScore').textContent = styleTotal.toLocaleString();
+  styleTotal += pts; $('styleScore').textContent = styleTotal.toLocaleString(); sfx.bank(n);
   message(`+${pts.toLocaleString()}<small>${combo.parts.slice(-4).join(' + ')}${n > 1 ? ' ×' + n : ''}</small>`, 1.4);
   dropCombo();
 }
 function startTrick(kind) { P.trick = { ...TRICKS[kind], t: 0 }; }
 function landTrickCheck() { // true if he lands clean
   if (!P.trick) return true;
-  const ok = P.trick.t / P.trick.dur >= 0.75;
+  const ok = P.trick.t / P.trick.dur >= 0.75, soft = P.trick.soft;
   if (ok) addCombo(P.trick.name, P.trick.pts);
   P.trick = null; P.trickQueue = null;
-  if (!ok) { dropCombo(); P.vel.multiplyScalar(0.25); P.stun = 0.6; message('Bail!<small>Finish the trick before you land</small>', 1); rumble(0.8, 0.6, 250); }
+  if (!ok && soft) return true; // swing flips never make you bail
+  if (!ok) { sfx.bail(); dropCombo(); P.vel.multiplyScalar(0.25); P.stun = 0.6; message('Bail!<small>Finish the trick before you land</small>', 1); rumble(0.8, 0.6, 250); }
   return ok;
 }
 function toggleSkates() {
   if (P.form === 'squirrel') { message('No skates<small>Squirrels have paws. Press T to change back</small>', 1); return; }
-  P.skates = !P.skates; store.set('vertigo-skates', P.skates ? '1' : '0');
+  P.skates = !P.skates; store.set('vertigo-skates', P.skates ? '1' : '0'); sfx.click();
   message(P.skates ? 'Skates on<small>C for tricks · land on rails and edges to grind</small>' : 'Skates off', 1.2);
   if (!P.skates) { P.trick = null; if (P.mode === 'grind') P.mode = 'foot'; }
 }
@@ -1789,14 +2083,39 @@ function transform() {
     if (solidAt(p.x, p.y + 1.0, p.z) || solidAt(p.x, p.y + 1.7, p.z)) { message('No room<small>Find open space to stand up</small>', 1); return; }
     if (P.mode === 'climb') { P.mode = 'foot'; p.x += P.wallN.x * 0.25; p.z += P.wallN.z * 0.25; }
     if (P.mode === 'ceiling') { P.mode = 'foot'; p.y -= 1.4; }
-    P.form = 'human'; R = 0.35; H = 1.75; P.skates = P.skatesSaved;
+    P.form = 'human'; R = 0.35; H = 1.75; P.skates = P.skatesSaved; P.bike = false;
   }
-  puff(p); rumble(0.3, 0.3, 120);
+  puff(p); rumble(0.3, 0.3, 120); sfx.poof();
 }
 function startClimb(hit) {
   P.mode = 'climb'; P.wallN = { x: hit.nx, z: hit.nz }; P.climbTop = hit.top;
   P.vel.set(0, Math.max(0, P.vel.y * 0.3), 0); P.onGround = false; P.trick = null;
-  rumble(0, 0.25, 50);
+  rumble(0, 0.25, 50); sfx.grab();
+}
+let bikeTipShown = false;
+function toggleBike() {
+  if (P.form !== 'squirrel') { message('Motorcycle<small>Turn into a squirrel first (R3 or T)</small>', 1.2); return; }
+  if (!P.bike && P.mode !== 'foot') { message('Motorcycle<small>Get your paws on the ground first</small>', 1); return; }
+  P.bike = !P.bike; puff(P.pos); rumble(0.4, 0.2, 150); sfx.poof(); if (P.bike) tone(70, 0.5, 'sawtooth', 0.08, 160);
+  if (P.bike && !bikeTipShown) { bikeTipShown = true; message('Vroom<small>Stick to steer · LB to boost and wheelie · A to hop · L3 to get off</small>', 2); }
+}
+function bikeGround(dt, wx, wz, wl, boost) { // throttle toward the stick, carve at speed, brake by pulling back
+  const v = P.vel; let sp = Math.hypot(v.x, v.z);
+  let hd = sp > 0.5 ? Math.atan2(-v.x, -v.z) : P.faceYaw;
+  const top = boost ? 30 : 22;
+  P.bikeTurn = 0;
+  if (wl > 0.1) {
+    const want = Math.atan2(-wx, -wz), d = Math.atan2(Math.sin(want - hd), Math.cos(want - hd));
+    if (sp < 1.5) { hd += clamp(d, -4 * dt, 4 * dt); sp += 10 * dt * wl; }
+    else if (Math.abs(d) < 2.4) {
+      const rate = 3.4 - Math.min(1.6, sp * 0.06); // tighter at low speed
+      const turn = clamp(d, -rate * dt, rate * dt); hd += turn; P.bikeTurn = turn / dt;
+      if (sp < top) sp = Math.min(top, sp + (boost ? 20 : 13) * dt * Math.max(0, Math.cos(d)) * wl);
+    } else sp = Math.max(0, sp - 28 * dt);
+  }
+  if (sp > top) sp -= 6 * dt;
+  sp = Math.max(0, sp - (0.8 + sp * 0.015) * dt);
+  v.x = -Math.sin(hd) * sp; v.z = -Math.cos(hd) * sp;
 }
 function skateGround(dt, wx, wz, wl, sprint) {
   const v = P.vel; let sp = Math.hypot(v.x, v.z);
@@ -1834,7 +2153,7 @@ function tryGrind(b) {
   P.grind = g; P.mode = 'grind';
   if (g.axis === 'z') p.x = g.fixed; else p.z = g.fixed;
   p.y = g.y; v.y = 0;
-  addCombo(g.rail ? 'Rail grind' : 'Edge grind', 150);
+  addCombo(g.rail ? 'Rail grind' : 'Edge grind', 150); noiseHit(0.12, 'highpass', 3000, 5000, 0.1);
   rumble(0.2, 0.3, 80);
   return true;
 }
@@ -1883,6 +2202,8 @@ function step(dt) {
   const mx = clamp((keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + stick.x, -1, 1);
   const mz = clamp((keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) + stick.y, -1, 1);
 
+  if (P.mode === 'surf') surfStep(dt, mx, mz);
+
   if (P.mode === 'climb') { // up/down is the stick's forward/back; sideways follows the camera
     const n = P.wallN, tx = -n.z, tz = n.x, sg = tx * Math.cos(camYaw) - tz * Math.sin(camYaw) >= 0 ? 1 : -1;
     const sp = keys.ShiftLeft || keys.ShiftRight || touchSprint || pad.sprint ? 12 : 8;
@@ -1918,7 +2239,7 @@ function step(dt) {
 
   if (trickPressed) {
     trickPressed = false;
-    if (P.skates && !P.onGround && P.mode === 'foot') {
+    if ((P.skates || P.surfAir) && !P.onGround && P.mode === 'foot') {
       const kind = mz > 0.5 ? 'front' : mz < -0.5 ? 'back' : Math.abs(mx) > 0.5 ? (mx > 0 ? 'corkR' : 'corkL') : 'spin';
       if (!P.trick) startTrick(kind); else if (P.trick.t > P.trick.dur * 0.6) P.trickQueue = kind;
     }
@@ -1937,7 +2258,7 @@ function step(dt) {
     if (P.mode === 'grapple') { P.mode = 'foot'; v.y = Math.max(v.y, 5); }
     else if (aim) {
       P.mode = 'grapple'; P.anchor = { ...aim, pt: aim.pt.clone() }; P.onGround = false; P.webT = 0;
-      addSplat(new THREE.Vector3(aim.pt.x, aim.rawY, aim.pt.z), aim.nx, aim.ny, aim.nz);
+      addSplat(new THREE.Vector3(aim.pt.x, aim.rawY, aim.pt.z), aim.nx, aim.ny, aim.nz); sfx.thwip(); sfx.zip();
     }
   }
 
@@ -1957,6 +2278,8 @@ function step(dt) {
       P.mode = 'foot';
       if (v.y > 0) v.y += 3;
       v.x *= 1.08; v.z *= 1.08;
+      sfx.whoosh();
+      if (Math.hypot(v.x, v.z) > 14 && v.y > 1 && !P.trick) P.trick = { ...TRICKS.front, name: 'Swing flip', pts: 250, dur: 0.6, t: 0, soft: true };
       jumpPressed = false;
     } else {
       v.y -= GRAV * dt;
@@ -1999,12 +2322,14 @@ function step(dt) {
       const ts = Math.hypot(v.x + P.wallN.x * 1.5, v.z + P.wallN.z * 1.5);
       if (ts > 0.1) P.faceYaw = Math.atan2(-(v.x + P.wallN.x * 1.5), -(v.z + P.wallN.z * 1.5));
       if (jumpPressed) {
-        v.x += P.wallN.x * 1.5 + P.wallN.x * 8; v.z += P.wallN.z * 1.5 + P.wallN.z * 8; v.y = 9;
+        v.x += P.wallN.x * 1.5 + P.wallN.x * 8; v.z += P.wallN.z * 1.5 + P.wallN.z * 8; v.y = 9; sfx.jump();
         P.mode = 'foot'; P.wallCool = 0.35; jumpPressed = false;
         P.faceYaw = Math.atan2(-v.x, -v.z);
       } else if (P.wallTime > 1.4) { P.mode = 'foot'; P.wallCool = 0.5; }
     } else {
-      if (P.onGround && P.skates && !P.swimming) skateGround(dt, wx, wz, wl, sprint);
+      P.bikeBoost = P.bike && !!(keys.ShiftLeft || keys.ShiftRight || touchSprint || pad.sprint); // only the button boosts, not a full stick
+      if (P.onGround && P.bike) bikeGround(dt, wx, wz, wl, P.bikeBoost);
+      else if (P.onGround && P.skates && !P.swimming) skateGround(dt, wx, wz, wl, sprint);
       else if (P.onGround) {
         const k = Math.min(1, dt * 14);
         v.x += (wx * maxS - v.x) * k; v.z += (wz * maxS - v.z) * k;
@@ -2013,19 +2338,19 @@ function step(dt) {
         const nx = v.x + wx * add, nz = v.z + wz * add, ns = Math.hypot(nx, nz);
         if (ns <= Math.max(hs, maxS)) { v.x = nx; v.z = nz; }
       }
-      const hsNow = Math.hypot(v.x, v.z);
-      if ((P.skates && hsNow > 1.5) || wl > 0.1) {
-        const target = P.skates && hsNow > 1.5 ? Math.atan2(-v.x, -v.z) : Math.atan2(-wx, -wz);
+      const hsNow = Math.hypot(v.x, v.z), rolling = (P.skates || P.bike) && hsNow > 1.5;
+      if (rolling || wl > 0.1) {
+        const target = rolling ? Math.atan2(-v.x, -v.z) : Math.atan2(-wx, -wz);
         let d = target - P.faceYaw; d = Math.atan2(Math.sin(d), Math.cos(d));
         P.faceYaw += d * Math.min(1, dt * 12);
       }
       v.y = Math.max(v.y - GRAV * dt, P.form === 'squirrel' ? -24 : -55); // fluffy squirrels fall slower
       if (jumpPressed) {
-        if (P.onGround || P.coyote > 0) { v.y = P.form === 'squirrel' ? 8.5 : 9.5 + (P.skates ? Math.min(3, hsNow * 0.15) : 0); P.onGround = false; P.coyote = 0; }
-        else deploy();
+        if (P.onGround || P.coyote > 0) { sfx.jump(); v.y = P.bike ? 7 : P.form === 'squirrel' ? 8.5 : 9.5 + (P.skates ? Math.min(3, hsNow * 0.15) : 0); P.onGround = false; P.coyote = 0; }
+        else if (!P.bike) deploy();
         jumpPressed = false;
       }
-      if (suitPressed) { if (!P.onGround) deploy(); suitPressed = false; }
+      if (suitPressed) { if (!P.onGround && !P.bike) deploy(); suitPressed = false; }
     }
     P.wish = [wx, wz];
   }
@@ -2048,13 +2373,20 @@ function step(dt) {
       const out = v.dot(tmp); if (out > 0) v.addScaledVector(tmp, -out);
     }
   }
+  if (P.mode === 'surf') { // ride the surface; run aground and you step off
+    const ws = waterSurface(p.x, p.z);
+    if (ws < -50) { P.mode = 'foot'; P.surfAir = false; } else p.y = ws;
+  }
   const wasGround = P.onGround, prevRamp = P.onRamp, prevRampVy = P.rampVy;
   P.knock = false;
   const { landV, hit } = collide();
   if (P.onRamp) { const r = P.onRamp, len = r.dx ? r.x1 - r.x0 : r.z1 - r.z0; P.rampVy = (v.x * r.dx + v.z * r.dz) * r.h / len; }
   else { if (prevRamp && !P.onGround && prevRampVy > 0.5) v.y = Math.max(v.y, prevRampVy * 1.6 + 3); P.rampVy = 0; }
-  if (p.y < -1.8 && overWater(p.x, p.z)) return wipeout('Splash. Into the Kessel River');
-  const sqCeil = P.form === 'squirrel' && P.ceilHit && P.climbCool <= 0;
+  if (P.mode !== 'surf' && !['climb', 'ceiling', 'mantle', 'grind'].includes(P.mode) && overWater(p.x, p.z)) { // hit the river: up on the board
+    const ws = waterSurface(p.x, p.z);
+    if (p.y <= ws + 0.05) { startSurf(ws); P.mode === 'surf' && (P.swimming = false); }
+  }
+  const sqCeil = P.form === 'squirrel' && !P.bike && P.ceilHit && P.climbCool <= 0;
   if (sqCeil && (P.mode === 'climb' || (P.mode === 'foot' && !P.onGround) || P.mode === 'glide')) { // grab the underside
     P.mode = 'ceiling'; P.ceilBox = P.ceilHit; v.set(0, 0, 0); rumble(0, 0.25, 50);
   }
@@ -2069,6 +2401,7 @@ function step(dt) {
     }
     if (P.mode === 'ceiling') { checkRings(); return; }
   }
+  if (P.bike && P.swimming) { P.bike = false; message('Stalled<small>Motorcycles and floodwater don\'t mix</small>', 1.2); }
   if (P.mode === 'climb') {
     if (P.onGround) P.mode = 'foot';
     else if (hit) { P.wallN = { x: hit.nx, z: hit.nz }; P.climbTop = hit.top; }
@@ -2078,8 +2411,9 @@ function step(dt) {
     } else { P.mode = 'foot'; P.climbCool = 0.25; } // ran off the side of the wall
     if (P.mode === 'climb') { checkRings(); return; }
   }
-  if (P.knock) { message('Honk!<small>Watch the traffic</small>', 1); rumble(0.7, 0.5, 200); }
+  if (P.knock) { message('Honk!<small>Watch the traffic</small>', 1); rumble(0.7, 0.5, 200); sfx.honk(); }
   if (P.onGround && !wasGround && landV > 14) rumble(clamp(landV / 30, 0.2, 0.8), 0.2, 90);
+  if (P.onGround && !wasGround && landV > 4) sfx.land(landV);
 
   // landings
   if (P.onGround) {
@@ -2093,6 +2427,7 @@ function step(dt) {
     if (P.mode === 'wallrun') P.mode = 'foot';
   } else if (wasGround && P.mode === 'foot' && v.y <= 0) P.coyote = 0.12;
   if (P.onGround && !wasGround && P.mode === 'foot') {
+    P.surfAir = false;
     const clean = landTrickCheck();
     const grinding = clean && P.skates && P.landBox && P.grindCool <= 0 && tryGrind(P.landBox);
     if (clean && !grinding) bankCombo();
@@ -2104,10 +2439,20 @@ function step(dt) {
     const dh = hit.top - p.y;
     if (P.mode === 'grapple') {
       if (p.distanceTo(P.anchor.pt) < 4) return grappleArrive();
+    } else if (P.mode === 'surf') {
+      const tx = p.x - hit.nx * (R + 0.45), tz = p.z - hit.nz * (R + 0.45);
+      if (P.form === 'squirrel') startClimb(hit);
+      else if (dh > 0 && dh <= 5.2 && !solidAt(tx, hit.top + 0.4, tz) && !solidAt(tx, hit.top + 1.5, tz)) {
+        P.mode = 'mantle'; P.mantleT = 0; P.mantleFrom.copy(p); P.mantleTo.set(tx, hit.top, tz);
+        P.faceYaw = Math.atan2(hit.nx, hit.nz); v.set(0, 0, 0);
+      } else { v.x += hit.nx * hit.impact * 0.6; v.z += hit.nz * hit.impact * 0.6; }
     } else if (P.mode === 'glide') {
       if (P.form === 'squirrel') startClimb(hit); // squirrels just grab on
       else if (hit.impact > 9) return wipeout('Wall');
       else P.mode = 'foot';
+    } else if (P.mode === 'foot' && P.form === 'squirrel' && P.bike) {
+      if (P.onGround && dh > 0 && dh <= 0.45) p.y = hit.top; // ride up curbs and steps
+      else if (hit.impact > 10) { v.x += hit.nx * hit.impact * 0.5; v.z += hit.nz * hit.impact * 0.5; v.y = Math.max(v.y, 3); message('Bonk!', 0.6); rumble(0.8, 0.4, 160); sfx.bonk(); }
     } else if (P.mode === 'foot' && P.form === 'squirrel') {
       const w = P.wish || [0, 0], into = -(w[0] * hit.nx + w[1] * hit.nz);
       if (dh > 0.3 && P.climbCool <= 0 && (into > 0.2 || (!P.onGround && hit.impact > 1))) startClimb(hit);
@@ -2132,6 +2477,8 @@ function step(dt) {
       }
     }
   } else if (P.mode === 'wallrun') { P.mode = 'foot'; P.wallCool = 0.3; }
+
+  if (P.mode !== 'foot' || P.onGround) P.surfAir = false; // the board only stays with you while you're in the air off a wave
 
   // remember the last safe rooftop
   if (P.onGround && P.mode === 'foot' && p.y > 8) {
@@ -2298,9 +2645,9 @@ function startDisaster(type) {
     const s = nearStreetSpot(cx, cz, f); DIS.evac = makeEvac(s.pos, 'truck', s.alongX);
   } else if (type === 'flood') {
     const cx = clamp(p.x, -560, 560), cz = (RIVER_Z0 + RIVER_Z1) / 2;
-    DIS.active = { type, cx, cz, t: 0, level: -2.2, x0: cx - 230, x1: cx + 230, z0: RIVER_Z0 - 74, z1: RIVER_Z1 + 74, props: [] };
+    DIS.active = { type, cx, cz, t: 0, level: RIVER_Y, x0: cx - 230, x1: cx + 230, z0: RIVER_Z0 - 74, z1: RIVER_Z1 + 74, props: [] };
     const water = new THREE.Mesh(new THREE.PlaneGeometry(460, RIVER_Z1 - RIVER_Z0 + 148), new THREE.MeshPhongMaterial({ color: 0x55665a, specular: 0xffb27a, shininess: 60, transparent: true, opacity: 0.82 }));
-    water.rotation.x = -Math.PI / 2; water.position.set(cx, -2.2, cz); scene.add(water); DIS.active.water = water;
+    water.rotation.x = -Math.PI / 2; water.position.set(cx, RIVER_Y, cz); scene.add(water); DIS.active.water = water;
     // stranded cars on the riverside streets, each with someone on the roof
     for (let i = 0; i < 4; i++) {
       const zz = i % 2 ? 6 * PERIOD + (Math.random() < 0.5 ? 3.5 : -3.5) : 4 * PERIOD + (Math.random() < 0.5 ? 3.5 : -3.5);
@@ -2336,7 +2683,7 @@ function startDisaster(type) {
     DIS.evac = makeEvac(new THREE.Vector3(sx, 0, overWater(sx, sz) ? sz - 130 : sz), 'shelter', true);
   }
   message(`${NAMES[type]}!<small>${type === 'fire' ? 'People are trapped on a burning roof' : type === 'flood' ? 'The Kessel River is flooding the streets' : 'A tornado is crossing the city'}</small>`, 2.2);
-  rumble(0.6, 0.6, 400);
+  rumble(0.6, 0.6, 400); sfx.alarm(type);
   updateAlert();
 }
 
@@ -2422,8 +2769,8 @@ function updateDisaster(dt, now) {
     }
     for (let i = 0; i < 26 * dt * Math.max(k, 0.3); i++) emit(smoke, f[0] + Math.random() * (f[2] - f[0]), f[4] + 1, f[1] + Math.random() * (f[3] - f[1]), 2.5 + Math.random(), 6 + Math.random() * 3, 0.8, 6 + Math.random() * 2);
   } else if (a.type === 'flood') {
-    const target = a.ending ? -2.6 : 1.2;
-    a.level += clamp(target - a.level, -0.25 * dt, 0.25 * dt);
+    const target = a.ending ? RIVER_Y - 0.4 : 1.2;
+    a.level += clamp(target - a.level, -0.4 * dt, 0.4 * dt); // about 14s from the riverbed to street level
     a.water.position.y = a.level + Math.sin(now / 900) * 0.04;
   } else if (a.type === 'tornado' && funnel) {
     const t = clamp(a.t / a.dur, 0, 1);
@@ -2470,7 +2817,7 @@ function updateDisaster(dt, now) {
           DIS.carry = v; v.state = 'carried'; v.beacon.visible = false; attachCarry(v);
           v.mesh.rotation.x = v.kind === 'person' && P.form === 'human' ? 0.25 : 0;
           message(`Got ${v.kind === 'person' ? 'them' : 'the ' + v.kind}!<small>Bring them to the ${a.type === 'fire' ? 'fire truck' : a.type === 'flood' ? 'helicopter' : 'storm shelter'}</small>`, 1.4);
-          rumble(0.2, 0.5, 120);
+          rumble(0.2, 0.5, 120); sfx.pickup();
         }
       }
     }
@@ -2489,6 +2836,7 @@ function updateDisaster(dt, now) {
     v.state = 'saved'; v.savedT = 0;
     rescuedTotal++; store.set('vertigo-rescued', String(rescuedTotal)); $('rescued').textContent = rescuedTotal;
     const left = DIS.victims.filter(x => x.state !== 'saved').length;
+    sfx.saved();
     message(`Saved!<small>${left ? left + ' still waiting' : 'That was the last one'}</small>`, 1.4); rumble(0, 0.7, 160);
     if (!left) endDisaster();
   }
@@ -2530,6 +2878,75 @@ function drawDisasterMap(ctx) {
   for (const v of DIS.victims) if (v.state === 'trapped' || v.state === 'swept') { ctx.beginPath(); ctx.arc(mmX(v.mesh.position.x), mmX(v.mesh.position.z), 5, 0, Math.PI * 2); ctx.fill(); }
 }
 
+// ---------- surfing ----------
+// Land in the river (or ride out over a flood) and he's up on a surfboard. Waves roll down the river; riding down a face speeds you up.
+let waveT = 0, surfTipShown = false;
+function waveH(x, z) {
+  const t = waveT;
+  return 0.45 * Math.sin(0.09 * x - 1.3 * t) + 0.2 * Math.sin(0.23 * x + 0.35 * z - 2.1 * t) + 0.08 * Math.sin(0.6 * (x + z) - 3 * t);
+}
+function waveGrad(x, z) {
+  const t = waveT, b = 0.2 * Math.cos(0.23 * x + 0.35 * z - 2.1 * t), c = 0.048 * Math.cos(0.6 * (x + z) - 3 * t);
+  return [0.0405 * Math.cos(0.09 * x - 1.3 * t) + b * 0.23 + c, b * 0.35 + c];
+}
+function waterSurface(x, z) { // -99 where there's nothing to surf on
+  const fl = floodLevel(x, z);
+  if (overWater(x, z)) return Math.max(RIVER_Y + waveH(x, z), fl);
+  if (fl > 0.3) return fl + waveH(x, z) * 0.3;
+  return -99;
+}
+const board = new THREE.Group(); board.visible = false; model.add(board);
+{
+  const deck = new THREE.Mesh(ball(1, 0.27, 0.04, 1.05), M(0xf3ece2)); deck.castShadow = true; board.add(deck);
+  const stripe = new THREE.Mesh(box(0.08, 0.085, 1.9), M(0xff6a1f)); board.add(stripe);
+  const fin = new THREE.Mesh(box(0.02, 0.16, 0.14), M(0x2b2d33)); fin.position.set(0, -0.09, 0.85); board.add(fin);
+}
+const spray = particles(300, 0xeef6ff, 0.45, false, 0.8);
+function startSurf(ws) {
+  const p = P.pos, v = P.vel, landing = P.surfAir || P.trick;
+  P.mode = 'surf'; p.y = ws; v.y = 0; P.onGround = false; P.bike = false;
+  if (landing && landTrickCheck()) bankCombo();
+  P.surfAir = false;
+  for (let i = 0; i < 40; i++) emit(spray, p.x, p.y + 0.1, p.z, (Math.random() - 0.5) * 6, 2 + Math.random() * 4, (Math.random() - 0.5) * 6, 0.8);
+  rumble(0.3, 0.4, 150); sfx.splash();
+  if (!surfTipShown) { surfTipShown = true; message('Surf\'s up<small>Stick to carve · push forward to pump · ride down the waves · A to launch · ride into the bank to climb out</small>', 2.4); }
+}
+function surfStep(dt, mx, mz) {
+  const v = P.vel, p = P.pos;
+  const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw), rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
+  let wx = fx * mz + rx * mx, wz = fz * mz + rz * mx; const wl = Math.hypot(wx, wz); if (wl > 1) { wx /= wl; wz /= wl; }
+  let sp = Math.hypot(v.x, v.z), hd = sp > 0.5 ? Math.atan2(-v.x, -v.z) : P.faceYaw;
+  const boost = keys.ShiftLeft || keys.ShiftRight || touchSprint || pad.sprint;
+  P.surfTurn = 0;
+  if (wl > 0.1) {
+    const want = Math.atan2(-wx, -wz), d = Math.atan2(Math.sin(want - hd), Math.cos(want - hd));
+    const turn = clamp(d, -2.6 * dt, 2.6 * dt); hd += turn; P.surfTurn = turn / dt;
+    if (Math.abs(d) < 2.2) { const top = boost ? 17 : 12; if (sp < top) sp = Math.min(top, sp + (boost ? 7 : 4.5) * dt * Math.max(0, Math.cos(d)) * wl); }
+    else sp = Math.max(0, sp - 8 * dt); // pull back to sit down on the board and slow
+  }
+  const [gx, gz] = waveGrad(p.x, p.z), dx = -Math.sin(hd), dz = -Math.cos(hd), slope = gx * dx + gz * dz;
+  sp = clamp(sp - 9.8 * slope * 1.4 * dt - (0.35 + sp * 0.025) * dt, 0, 24);
+  v.set(dx * sp, 0, dz * sp);
+  if (overWater(p.x, p.z)) p.x += 2.2 * dt; // the current carries you downstream
+  if (sp > 0.5) P.faceYaw = hd;
+  if (sp > 4) for (let i = 0; i < sp * 0.6 * dt * 20; i++) // spray off the tail
+    emit(spray, p.x - dx * 0.9 + (Math.random() - 0.5) * 0.4, p.y + 0.05, p.z - dz * 0.9 + (Math.random() - 0.5) * 0.4, -dx * 2 + (Math.random() - 0.5) * 3, 1.5 + Math.random() * 2.5, -dz * 2 + (Math.random() - 0.5) * 3, 0.5);
+  if (jumpPressed) { // launch off the lip, higher if you're riding up a wave
+    jumpPressed = false;
+    v.y = 7 + Math.min(3, sp * 0.2) + Math.max(0, slope) * 25; P.mode = 'foot'; P.surfAir = true; P.onGround = false; sfx.jump();
+  }
+  suitPressed = false;
+}
+function updateRiver(dt) {
+  waveT += dt;
+  stepParticles(spray, dt, 1.2);
+  for (let i = 0; i < spray.n; i++) spray.vel[i * 3 + 1] -= 9 * dt;
+  if (!riverMesh) return;
+  const pos = riverMesh.geometry.attributes.position, a = pos.array;
+  for (let i = 0; i < a.length; i += 3) a[i + 1] = RIVER_Y + waveH(a[i], a[i + 2]);
+  pos.needsUpdate = true;
+}
+
 // ---------- game flow ----------
 let crash = 0, clock = 0, started = false, finished = false, collected = 0, msgTimer = 0;
 let best = parseFloat(store.get('vertigo-best')) || 0;
@@ -2539,7 +2956,7 @@ showBest();
 function message(html, secs) { const m = $('msg'); m.innerHTML = html; m.style.opacity = 1; msgTimer = secs; }
 function collectRing(r) {
   r.got = true; r.mesh.material.color.set(0x3b3550); r.mesh.children[0].visible = false;
-  collected++; rumble(0, 0.6, 120);
+  collected++; rumble(0, 0.6, 120); sfx.ring();
   if (collected === rings.length) {
     finished = true;
     const isBest = !best || clock < best;
@@ -2548,7 +2965,7 @@ function collectRing(r) {
   } else message(`${collected}<small>of ${rings.length} rings</small>`, 0.9);
 }
 function wipeout(why) {
-  crash = 1.3; P.vel.set(0, 0, 0); rumble(1, 1, 350); dropCombo(); P.trick = null; dropCarry(true);
+  crash = 1.3; P.vel.set(0, 0, 0); rumble(1, 1, 350); sfx.wipeout(); dropCombo(); P.trick = null; dropCarry(true);
   $('flash').style.opacity = 0.55; message(`Wipeout<small>${why}</small>`, 1.3);
   setTimeout(() => { $('flash').style.opacity = 0; }, 120);
 }
@@ -2563,7 +2980,6 @@ function pause() {
   $('introText').textContent = 'Paused. Your run clock is stopped.';
   $('go').textContent = finished ? 'New run' : 'Resume';
   $('intro').hidden = false; $('hud').hidden = true; $('touch').hidden = true;
-  if (audio) audio.gain.gain.value = 0;
 }
 function startGame(fromPad) {
   if (finished) resetRun();
@@ -2571,6 +2987,9 @@ function startGame(fromPad) {
   startAudio(); if (!coarse && !fromPad) tryLock();
 }
 $('go').addEventListener('click', () => startGame(false));
+$('tMusic').addEventListener('click', () => { startAudio(); setSound('music', !SND.music); });
+$('tSfx').addEventListener('click', () => { startAudio(); setSound('sfx', !SND.sfx); });
+setSound('music', SND.music); setSound('sfx', SND.sfx);
 addEventListener('keydown', e => { if (e.code === 'Escape' && playing && !locked) pause(); });
 
 // ---------- camera ----------
@@ -2627,6 +3046,9 @@ function frame(now) {
   model.position.copy(p);
   const gliding = P.mode === 'glide', sq = P.form === 'squirrel';
   trickPivot.visible = !sq; critter.visible = sq;
+  bike.visible = sq && P.bike; // the bike hangs off the model itself, so hide it whenever he isn't riding
+  board.visible = P.mode === 'surf' || (P.surfAir && P.mode === 'foot' && !P.onGround);
+  if (board.visible) { board.scale.setScalar(sq ? 0.35 : 1); board.rotation.set(0, sq ? 0 : -Math.PI / 2, 0); board.position.y = sq ? 0.01 : -0.02; }
   wings.visible = gliding && !sq;
   skates.forEach(k => { k.visible = P.skates; });
   inner.position.y = -0.95 + (P.skates ? 0.09 : 0);
@@ -2638,43 +3060,64 @@ function frame(now) {
   else if (gliding) {
     model.rotation.set(-Math.PI / 2 + P.pitch, P.yaw, 0);
     inner.rotation.y = P.roll;
-    armL.rotation.set(0, 0, -1.5); armR.rotation.set(0, 0, 1.5);
-    legL.rotation.set(0, 0, -0.38); legR.rotation.set(0, 0, 0.38);
+    armL.rotation.set(0, 0, -1.5); armR.rotation.set(0, 0, 1.5); armL.elbow.rotation.x = armR.elbow.rotation.x = 0;
+    legL.rotation.set(0, 0, -0.38); legR.rotation.set(0, 0, 0.38); legL.knee.rotation.x = legR.knee.rotation.x = 0;
   } else {
     inner.rotation.y = 0;
+    for (const l of [legL, legR]) l.knee.rotation.set(0, 0, 0);
+    for (const a of [armL, armR]) a.elbow.rotation.set(0, 0, 0);
     let lean = P.onGround ? (P.skates ? -0.28 : -0.14) * Math.min(1, hs / 13) : 0;
     let tiltZ = 0;
     if (P.mode === 'wallrun' && P.wallN) {
       const rightX = Math.cos(P.faceYaw), rightZ = -Math.sin(P.faceYaw);
       tiltZ = -(P.wallN.x * rightX + P.wallN.z * rightZ) * 0.35;
     }
-    model.rotation.set(lean, P.faceYaw + (P.mode === 'grind' ? Math.PI / 2 : 0), tiltZ);
-    if (P.mode === 'grind') { // sideways on the rail, arms out for balance
-      legL.rotation.set(0.35, 0, -0.18); legR.rotation.set(-0.35, 0, 0.18);
+    const sideways = P.mode === 'grind' || P.mode === 'surf' || P.surfAir;
+    if (P.mode === 'surf') lean = clamp(-P.surfTurn * hs * 0.035, -0.5, 0.5); // lean into the carve
+    model.rotation.set(lean, P.faceYaw + (sideways ? Math.PI / 2 : 0), tiltZ);
+    // (thigh +x swings the foot forward, knee -x folds the shin back, elbow +x bends the forearm forward)
+    if (P.mode === 'surf') { // crouched surf stance: feet wide, knees bent, arms out
+      legL.rotation.set(0.35, 0, -0.32); legR.rotation.set(0.35, 0, 0.32);
+      legL.knee.rotation.x = legR.knee.rotation.x = -0.8;
+      armL.rotation.set(-0.3, 0, -1.0 + Math.sin(P.anim += dt * 2) * 0.1); armR.rotation.set(0.3, 0, 1.0);
+      armL.elbow.rotation.x = armR.elbow.rotation.x = 0.35;
+    } else if (P.mode === 'grind') { // sideways on the rail, knees soft, arms out for balance
+      legL.rotation.set(0.45, 0, -0.18); legR.rotation.set(-0.25, 0, 0.18);
+      legL.knee.rotation.x = -0.7; legR.knee.rotation.x = -0.5;
       armL.rotation.set(-0.2, 0, -1.25); armR.rotation.set(-0.2, 0, 1.25);
-    } else if (P.trick) { // tucked up mid-trick
-      legL.rotation.set(-1.25, 0, 0); legR.rotation.set(-1.25, 0, 0);
-      armL.rotation.set(-0.9, 0, -0.3); armR.rotation.set(-0.9, 0, 0.3);
-    } else if (P.skates && P.onGround) { // long skating strides
+    } else if (P.trick) { // tight tuck: knees to chest, paws on shins
+      legL.rotation.set(1.45, 0, -0.08); legR.rotation.set(1.45, 0, 0.08);
+      legL.knee.rotation.x = legR.knee.rotation.x = -2.1;
+      armL.rotation.set(0.9, 0, -0.25); armR.rotation.set(0.9, 0, 0.25);
+      armL.elbow.rotation.x = armR.elbow.rotation.x = 1.1;
+    } else if (P.skates && P.onGround) { // long skating strides, knees bent
       P.anim += hs * dt * 0.45;
       const amp = Math.min(1, hs / 6), s = Math.sin(P.anim);
-      legL.rotation.set(s * 0.45 * amp, 0, -0.08 - Math.max(0, s) * 0.25 * amp);
-      legR.rotation.set(-s * 0.45 * amp, 0, 0.08 + Math.max(0, -s) * 0.25 * amp);
+      legL.rotation.set(0.25 + s * 0.45 * amp, 0, -0.08 - Math.max(0, s) * 0.25 * amp);
+      legR.rotation.set(0.25 - s * 0.45 * amp, 0, 0.08 + Math.max(0, -s) * 0.25 * amp);
+      legL.knee.rotation.x = -0.45 - Math.max(0, -s) * 0.4 * amp; legR.knee.rotation.x = -0.45 - Math.max(0, s) * 0.4 * amp;
       armL.rotation.set(-s * 0.6 * amp, 0, -0.2); armR.rotation.set(s * 0.6 * amp, 0, 0.2);
-    } else if (P.onGround || P.mode === 'wallrun') {
+      armL.elbow.rotation.x = armR.elbow.rotation.x = 0.4;
+    } else if (P.onGround || P.mode === 'wallrun') { // run cycle: the trailing leg folds at the knee, elbows pump
       P.anim += hs * dt * 1.15;
       const amp = Math.min(1, hs / 7) * 0.9, s = Math.sin(P.anim);
       legL.rotation.set(s * amp, 0, 0); legR.rotation.set(-s * amp, 0, 0);
+      legL.knee.rotation.x = -(0.08 + Math.max(0, -s) * 1.5 * amp); legR.knee.rotation.x = -(0.08 + Math.max(0, s) * 1.5 * amp);
       armL.rotation.set(-s * amp * 0.9, 0, -0.08); armR.rotation.set(s * amp * 0.9, 0, 0.08);
+      armL.elbow.rotation.x = armR.elbow.rotation.x = 0.15 + amp * 1.1;
     } else if (P.mode === 'grapple' || P.mode === 'swing') {
-      legL.rotation.set(0.25, 0, -0.1); legR.rotation.set(-0.2, 0, 0.1);
-      armL.rotation.set(-0.4, 0, -0.7); armR.rotation.set(-3.0, 0, 0.15);
-    } else if (P.mode === 'mantle') {
-      legL.rotation.set(-1.2, 0, 0); legR.rotation.set(-0.4, 0, 0);
+      poseSwing(dt);
+    } else if (P.mode === 'mantle') { // one knee up onto the ledge, both paws planted
+      legL.rotation.set(1.3, 0, 0); legR.rotation.set(0.2, 0, 0);
+      legL.knee.rotation.x = -1.8; legR.knee.rotation.x = -0.6;
       armL.rotation.set(-2.6, 0, 0); armR.rotation.set(-2.6, 0, 0);
-    } else {
-      legL.rotation.set(-0.7, 0, 0); legR.rotation.set(0.3, 0, 0);
-      armL.rotation.set(-0.5, 0, -0.9); armR.rotation.set(-0.5, 0, 0.9);
+      armL.elbow.rotation.x = armR.elbow.rotation.x = 0.7;
+    } else { // flying: one paw reaching ahead, the other back, one knee tucked
+      const rising = P.vel.y > 0;
+      armR.rotation.set(rising ? 2.5 : 1.6, 0, 0.15); armR.elbow.rotation.x = 0.15;
+      armL.rotation.set(-0.6, 0, -0.9); armL.elbow.rotation.x = 0.5;
+      legL.rotation.set(0.6, 0, -0.05); legL.knee.rotation.x = -1.2;
+      legR.rotation.set(-0.35, 0, 0.05); legR.knee.rotation.x = -0.35;
     }
   }
 
@@ -2686,7 +3129,7 @@ function frame(now) {
     camYaw += d * Math.min(1, dt * 4);
     camPitch = lerp(camPitch, 0.22 - P.pitch * 0.55, Math.min(1, dt * 3));
   }
-  const wantDist = sq ? (gliding ? 5.5 : 3.2) : gliding ? 8.5 : 5.5;
+  const wantDist = sq ? (gliding ? 5.5 : P.bike ? 4.6 : 3.2) : gliding ? 8.5 : 5.5;
   camTarget.lerp(tmp.set(p.x, p.y + (sq ? 0.45 : 1.45), p.z), 1 - Math.exp(-dt * 18));
   camDir.set(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch), Math.cos(camYaw) * Math.cos(camPitch));
   const allowed = camRay(camTarget, camDir, wantDist) - 0.35;
@@ -2712,12 +3155,12 @@ function frame(now) {
   if (strand.visible) {
     P.webT = Math.min(1, P.webT + dt / 0.09); // the strand shoots out before it reaches the wall
     model.updateMatrixWorld();
-    armR.localToWorld(handPos.set(0, -0.68, 0));
+    (P.mode === 'swing' && P.swingHand === 'L' ? armL : armR).hand.getWorldPosition(handPos);
     strand.position.copy(handPos);
     strand.lookAt(P.anchor.pt);
     strand.scale.set(1, 1, handPos.distanceTo(P.anchor.pt) * P.webT);
   }
-  updateSparks(dt); updatePuff(dt); updateDisaster(dt, now);
+  updateSparks(dt); updatePuff(dt); updateDisaster(dt, now); updateRiver(dt); updateAudio(dt, speed, hs);
   for (const s of splats) if (s.visible) {
     s.age += dt; s.material.opacity = clamp(1.4 - s.age / 5, 0, 0.9);
     if (s.age > 7) s.visible = false;
@@ -2735,7 +3178,7 @@ function frame(now) {
     $('alt').textContent = Math.max(0, Math.round(p.y - groundBelow(p.x, p.y, p.z)));
     const mode = $('mode');
     const label = { foot: P.onGround ? 'On foot' : 'Airborne', glide: 'Gliding', wallrun: 'Wall-run', mantle: 'Vault', grapple: 'Zipping', swing: 'Swinging', climb: 'Climbing', ceiling: 'Upside down' }[P.mode];
-    const labelTxt = sq && P.mode === 'foot' && P.onGround ? 'Squirrel' : P.mode === 'grind' ? 'Grinding' : P.ride && P.mode === 'foot' ? 'Car surfing' : P.skates && P.mode === 'foot' && P.onGround ? 'Skating' : label;
+    const labelTxt = P.mode === 'surf' ? 'Surfing' : P.bike && P.mode === 'foot' ? 'Motorcycle' : sq && P.mode === 'foot' && P.onGround ? 'Squirrel' : P.mode === 'grind' ? 'Grinding' : P.ride && P.mode === 'foot' ? 'Car surfing' : P.skates && P.mode === 'foot' && P.onGround ? 'Skating' : label;
     if (mode.textContent !== labelTxt) { mode.textContent = labelTxt; mode.className = 'chip' + (P.mode === 'glide' ? ' glide' : P.mode === 'wallrun' || P.mode === 'grapple' || P.mode === 'swing' || P.mode === 'climb' || P.mode === 'ceiling' ? ' wall' : ''); }
     $('timer').textContent = fmt(clock);
     const dn = DISTRICT_NAMES[districtAt(Math.floor(p.x / PERIOD), Math.floor(p.z / PERIOD))] || 'Outskirts';
@@ -2754,11 +3197,6 @@ function frame(now) {
       const dy = Math.round(target.pos.y - p.y);
       $('ringInfo').textContent = `${rt ? rt.label + ' ' : ''}${Math.round(td)} m ${dy >= 0 ? '↑' : '↓'}${Math.abs(dy)}`;
     } else $('ringInfo').textContent = 'done';
-    if (audio) {
-      const g = Math.pow(clamp(speed / 55, 0, 1), 1.6) * 0.5;
-      audio.gain.gain.setTargetAtTime(crash ? 0 : g, audio.ctx.currentTime, 0.1);
-      audio.filt.frequency.setTargetAtTime(250 + speed * 30, audio.ctx.currentTime, 0.1);
-    }
   }
   for (const r of rings) if (!r.got) r.mesh.children[0].material.opacity = 0.06 + 0.05 * Math.sin(now / 300);
 
