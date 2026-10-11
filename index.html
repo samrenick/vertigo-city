@@ -114,6 +114,8 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
     <div class="style" id="styleScore">0</div>
     <div class="lbl" style="margin-top:10px">Rescued</div>
     <div class="style rescued" id="rescued">0</div>
+    <div class="lbl" style="margin-top:10px">Passengers</div>
+    <div class="style" id="pax">0</div>
   </div>
   <div class="bl">
     <div class="gauge speed" id="spdBox"><span class="num" id="spd">0</span><span class="unit">KM/H</span></div>
@@ -176,12 +178,14 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
       <kbd>Land in the river</kbd><span>Fall, glide or jump into the Kessel River and you're up on a surfboard. Stick to carve, push forward to pump, ride down the waves for speed, A to launch off the lip (tricks work), ride into the bank to climb out. In a flood you can surf right over the streets</span>
       <div class="sec">Buildings</div>
       <kbd>Walk in</kbd><span>The bigger buildings have doors on every side. Step on the blue pad in a lobby corner to ride the elevator to the roof; the pad in the little hut up top brings you back down</span>
-      <div class="sec">Airport</div>
-      <kbd>Kessel Field</kbd><span>Past the east edge of town (the blue plane on the minimap). Walk up to the plane and press E to get in</span>
-      <kbd>Shift · W</kbd><span>Throttle. On the runway, hold S past 110 km/h to lift off</span>
+      <kbd>Look around</kbd><span>Hotels (neon signs, a pool on the roof), covered markets and restaurant rows with patios are all walk-in too</span>
+      <div class="sec">Airports and the jet</div>
+      <kbd>Two airports</kbd><span>Kessel Field past the east edge of town and Southport south of downtown. The jet (blue on the minimap) waits at Kessel Field. Walk up to it and press E to get in</span>
+      <kbd>Passengers</kbd><span>Stop by the crowd at the gate and they board. Fly them to the other airport (follow the blue arrow), land, and roll up to its gate to let them off</span>
+      <kbd>Shift · W</kbd><span>Throttle. On the runway, past 160 km/h keep Shift held and pull back (S) to lift off</span>
       <kbd>W S · A D · Mouse</kbd><span>In the air: pitch, bank and steer, like gliding. Shift for full power</span>
-      <kbd>Land</kbd><span>Come in level and gently on any flat ground or a big roof, then S to brake. Hit anything and it's a wipeout</span>
-      <kbd>E</kbd><span>Get out once you've stopped. In the air that means bailing out, so glide down</span>
+      <kbd>Land</kbd><span>Line up with a runway (or any big flat space), let go of Shift and ease the nose down with W. Below 80 m it slows to approach speed, levels the wings and flares by itself. Just don't dive steeply or bank hard. On the ground, S brakes</span>
+      <kbd>E</kbd><span>Get out once you've stopped. In the air you can bail out, but not with passengers aboard</span>
       <div class="sec">Disasters and rescues</div>
       <kbd>Every few minutes</kbd><span>A fire, flood or tornado strikes. Follow the green arrow to people and animals in trouble, touch them to pick them up, and carry them to the blue drop-off. Squirrels can carry animals but not people</span>
       <kbd>N</kbd><span>Call in the next disaster now</span>
@@ -196,7 +200,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
         <kbd>D-pad up</kbd><span>Call in the next disaster</span>
         <kbd>Right stick</kbd><span>Look and steer</span>
         <kbd>A</kbd><span>Jump. In mid-air: glide</span>
-        <kbd>B</kbd><span>Start or stop gliding. Next to the plane: get in or out (LB is the throttle)</span>
+        <kbd>B</kbd><span>Start or stop gliding. Next to the jet: get in or out (LB is the throttle)</span>
         <kbd>Hold RT · RB</kbd><span>Web swing</span>
         <kbd>LT</kbd><span>Zip</span>
         <kbd>X</kbd><span>Board trick (with stick direction)</span>
@@ -319,6 +323,14 @@ function facadeTexture(style) {
     ca.fillStyle = '#cdbb9c'; ca.fillRect(0, 0, W, Hh);
     ca.fillStyle = '#e2d4b8'; for (let x = 0; x < W; x += 21) ca.fillRect(x, 0, 5, Hh);
     for (let r = 0; r < 8; r++) for (let c = 0; c < 6; c++) win(c * 21 + 8, r * 32 + 5, 10, 24, 0.25, '#ffd28a', '#2f3446');
+  } else if (style === 'hotel') { // warm plaster, a balcony with a railing under every window
+    ca.fillStyle = '#d9c4ae'; ca.fillRect(0, 0, W, Hh);
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 3; c++) {
+      const x = c * 42 + 8, y = r * 32 + 6;
+      win(x, y, 26, 19, 0.38, '#ffd9a0', '#2f3446');
+      ca.fillStyle = '#f2ece4'; ca.fillRect(x - 4, y + 19, 34, 4);
+      ca.fillStyle = '#5a5050'; ca.fillRect(x - 4, y + 13, 34, 1); for (let k = 0; k <= 32; k += 4) ca.fillRect(x - 4 + k, y + 13, 1, 6);
+    }
   }
   const t1 = new THREE.CanvasTexture(a), t2 = new THREE.CanvasTexture(e);
   for (const t of [t1, t2]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.encoding = THREE.sRGBEncoding; }
@@ -352,7 +364,7 @@ function grassTexture() {
 }
 
 // ---------- city ----------
-const PERIOD = 64, BLOCK = 44, NB = 24; // blocks per side; streets are 20m wide, centred on multiples of 64
+const PERIOD = 64, BLOCK = 44, NB = 30; // blocks per side; streets are 20m wide, centred on multiples of 64
 const half = NB / 2;
 // The Kessel River fills two block rows north of downtown; every north-south street crosses it on a bridge.
 const RIVER_Z0 = 4 * PERIOD + 10, RIVER_Z1 = 5 * PERIOD + 54;
@@ -386,7 +398,7 @@ function rampHeight(r, x, z) {
   const t = r.dx > 0 ? (x - r.x0) / (r.x1 - r.x0) : r.dx < 0 ? (r.x1 - x) / (r.x1 - r.x0) : r.dz > 0 ? (z - r.z0) / (r.z1 - r.z0) : (r.z1 - z) / (r.z1 - r.z0);
   return r.y0 + clamp(t, 0, 1) * r.h;
 }
-const STYLES = ['office', 'glass', 'brick', 'metal', 'deco', 'plain'];
+const STYLES = ['office', 'glass', 'brick', 'metal', 'deco', 'hotel', 'plain'];
 const buf = {}; for (const s of STYLES) buf[s] = { p: [], n: [], uv: [], c: [] };
 function face(A, p0, p1, p2, p3, n, u0, u1, v0, v1, col) {
   const P = [p0, p1, p2, p0, p2, p3], U = [[u0, v0], [u1, v0], [u1, v1], [u0, v0], [u1, v1], [u0, v1]];
@@ -423,6 +435,7 @@ const PAL = {
   brick: ['#e3d0c4', '#d9b8a6', '#f0e2d6', '#c9a896', '#e8d7cc'].map(C),
   metal: ['#d6dade', '#c2cfd6', '#d8d2c2', '#b9c6bd'].map(C),
   deco: ['#f0e6d6', '#e6d8c2', '#d9d2c8'].map(C),
+  hotel: ['#f0e2d0', '#e8d6c6', '#f4e8dc', '#dcc8b4'].map(C),
   roof: ['#55525a', '#4b4a52', '#5e5852', '#46474f'].map(C),
   prop: C('#8d8b90'), concrete: C('#a8a49f'), crane: C('#e3b22a'), asphalt: C('#35343a'), rail: C('#6d6f74'),
   bridge: C('#b0463a'), sidewalk: C('#8a8380'),
@@ -431,6 +444,8 @@ const PAL = {
 const footprints = [];          // for the minimap: [x0, z0, x1, z1, height, kind]
 const waterTowers = [], stacks = [], tanks = [], trees = [], parks = [];
 const decals = []; // [x0, z0, x1, z1, y, color] flat paint on the ground, drawn with a depth offset so it never flickers
+const signs = [];  // neon signs: {x, y, z, w, nx, nz, i} centre, width, facing and which word
+const SIGN_WORDS = [['HOTEL', '#ff6a1f'], ['MARKET', '#7dff8a'], ['DINER', '#ff4f7a'], ['PIZZA', '#ffcc4d'], ['NOODLES', '#7fd0ff'], ['CAFE', '#e6a8ff'], ['TACOS', '#ffcc4d'], ['GRILL', '#ff6a1f']];
 
 // trunk is solid all the way up; the canopy is a one-way platform you can land on from above
 const TREE = { oak: { trunk: 0.3, top: 6.7, plat: 2.0 }, pine: { trunk: 0.22, top: 7.4, plat: 0.8 }, birch: { trunk: 0.16, top: 7.4, plat: 1.3 } };
@@ -744,14 +759,77 @@ function plaza(ox, oz) {
   footprints.push([ox + 16, oz + 16, ox + 28, oz + 28, 4, 'plaza']);
 }
 
-const DISTRICT_NAMES = { woods: 'Old Pine Woods', downtown: 'Downtown', midtown: 'Midtown', north: 'Northside', industrial: 'Harbor Works', park: 'Greenway Park', river: 'Kessel River', airport: 'Kessel Field Airport' };
+// a single-storey hall you can walk into: walls with a door in the middle of each side, a roof slab between them
+function hollowHall(x0, z0, x1, z1, h, col, rc, style, kind) {
+  const T = 0.4, D = 1.5, DH = Math.min(3.2, h - 1), mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+  const wall = (a0, b0, a1, b1, y0) => addBox(a0, y0, b0, a1, h, b1, col, rc, style);
+  for (const [za, zb] of [[z0, z0 + T], [z1 - T, z1]]) { wall(x0, za, mx - D, zb, 0); wall(mx + D, za, x1, zb, 0); wall(mx - D, za, mx + D, zb, DH); }
+  for (const [xa, xb] of [[x0, x0 + T], [x1 - T, x1]]) { wall(xa, z0 + T, xb, mz - D, 0); wall(xa, mz + D, xb, z1 - T, 0); wall(xa, mz - D, xb, mz + D, DH); }
+  addBox(x0 + T, h - 0.4, z0 + T, x1 - T, h, z1 - T, col, rc, 'plain');
+  const tile = C('#9a9088'); addBox(x0 + T, 0, z0 + T, x1 - T, 0.03, z1 - T, tile, tile, 'plain', false, false);
+  footprints.push([x0, z0, x1, z1, h, kind]);
+  return { mx, mz };
+}
+function hotel(ox, oz, hMin, hMax) { // balconies, a big neon sign and a pool on the roof, a canopy over the front door
+  const x0 = ox + 6, z0 = oz + 8, x1 = ox + 38, z1 = oz + 36, h = Math.round(hMin + rand() * (hMax - hMin));
+  building(x0, z0, x1, z1, h, 'hotel', 'hotel');
+  const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2, red = C('#b5462f');
+  decals.push([mx - 5, mz - 3, mx + 7, mz + 5, h, '#d9d2c8'], [mx - 4, mz - 2, mx + 6, mz + 4, h + 0.02, '#3fa7d6']); // pool deck and pool
+  addBox(mx - 9, h, z0 + 1, mx + 9, h + 5.2, z0 + 1.4, PAL.rail, PAL.rail, 'plain');            // sign frame
+  signs.push({ x: mx, y: h + 2.6, z: z0 + 1, w: 16, nx: 0, nz: -1, i: 0 }, { x: mx, y: h + 2.6, z: z0 + 1.4, w: 16, nx: 0, nz: 1, i: 0 });
+  addBox(mx - 3.5, 3.4, z0 - 4.5, mx + 3.5, 3.7, z0, red, red, 'plain');                        // entrance canopy
+  for (const px of [mx - 3.3, mx + 3.1]) addBox(px, 0, z0 - 4.3, px + 0.2, 3.4, z0 - 4.1, PAL.rail, PAL.rail, 'plain');
+  for (let i = 0; i < 4; i++) if (i !== 1 && i !== 2) tree(x0 + 2 + i * 9.5, z0 - 5, 0.6, 'birch');
+}
+function restaurantRow(ox, oz) { // little restaurants facing the street on two sides, umbrella tables in between
+  for (const [z0, z1, face] of [[oz + 1, oz + 13, -1], [oz + 31, oz + 43, 1]]) for (let i = 0; i < 3; i++) {
+    const x0 = ox + 1 + i * 14.5, x1 = x0 + 12.5, h = 5 + Math.round(rand() * 2), aw = pick(PAL.boxes);
+    const { mx, mz } = hollowHall(x0, z0, x1, z1, h, pick(PAL.brick), pick(PAL.roof), rand() < 0.5 ? 'brick' : 'office', 'restaurant');
+    const fz = face < 0 ? z0 : z1; // the street side
+    addBox(x0 + 0.5, 3.0, Math.min(fz, fz + face * 2.2), x1 - 0.5, 3.25, Math.max(fz, fz + face * 2.2), aw, aw, 'plain'); // awning
+    signs.push({ x: mx, y: 4.3, z: fz, w: 6, nx: 0, nz: face, i: 2 + Math.floor(rand() * 6) });
+    for (const [tx, tz] of [[mx - 3, mz - 2.5], [mx + 3, mz - 2.5], [mx - 3, mz + 2.5], [mx + 3, mz + 2.5]])
+      addBox(tx - 0.5, 0, tz - 0.5, tx + 0.5, 0.75, tz + 0.5, C('#6b4a32'), C('#d9cbb8'), 'plain', true, false); // tables
+    lightSpots.push([mx, h - 0.44, mz]);
+  }
+  decals.push([ox, oz + 13, ox + BLOCK, oz + 31, 0, '#8a7f74']); // the patio
+  for (const z of [oz + 18.5, oz + 25.5]) for (let i = 0; i < 6; i++) {
+    const x = ox + 4.5 + i * 7, c = pick(PAL.boxes);
+    addBox(x - 0.06, 0, z - 0.06, x + 0.06, 2.3, z + 0.06, PAL.rail, PAL.rail, 'plain', false, false);
+    addBox(x - 1.3, 2.3, z - 1.3, x + 1.3, 2.45, z + 1.3, c, c, 'plain');                        // umbrella you can land on
+    addBox(x - 0.5, 0, z - 0.5, x + 0.5, 0.75, z + 0.5, C('#e6e2da'), C('#e6e2da'), 'plain', true, false);
+  }
+}
+function market(ox, oz) { // a covered market hall full of stalls, and open-air stalls along the north side
+  const x0 = ox + 2, z0 = oz + 2, x1 = ox + 42, z1 = oz + 28, h = 8;
+  const { mx, mz } = hollowHall(x0, z0, x1, z1, h, pick(PAL.brick), C('#6d5040'), 'brick', 'market');
+  signs.push({ x: mx, y: 5.6, z: z0, w: 10, nx: 0, nz: -1, i: 1 }, { x: mx, y: 5.6, z: z1, w: 10, nx: 0, nz: 1, i: 1 });
+  for (const sz of [z0 + 6, z1 - 6]) for (let x = x0 + 3; x < x1 - 4; x += 5.5) {
+    if (Math.abs(x + 1.5 - mx) < 3.5) continue; // keep the aisle to the doors clear
+    const c = pick(PAL.boxes);
+    addBox(x, 0, sz - 0.6, x + 3, 1, sz + 0.6, C('#7a5b43'), pick(PAL.boxes), 'plain', true, false); // counter, produce on top
+    addBox(x - 0.2, 2.4, sz - 1.2, x + 3.2, 2.55, sz + 1.2, c, c, 'plain', false);                    // stall canopy
+    for (const px of [x - 0.1, x + 3]) addBox(px, 0, sz - 1.2, px + 0.1, 2.4, sz - 1.1, PAL.rail, PAL.rail, 'plain', false, false);
+  }
+  for (const lx of [x0 + 10, mx, x1 - 10]) lightSpots.push([lx, h - 0.44, mz]);
+  decals.push([ox, oz + 28, ox + BLOCK, oz + BLOCK, 0, '#8a7f74']);
+  for (let x = ox + 3; x < ox + 40; x += 7) {
+    const c = pick(PAL.boxes), z = oz + 36;
+    addBox(x, 0, z - 0.6, x + 4, 0.95, z + 0.6, C('#7a5b43'), pick(PAL.boxes), 'plain', true, false);
+    addBox(x - 0.3, 2.6, z - 1.8, x + 4.3, 2.75, z + 1.8, c, c, 'plain');
+    for (const px of [x - 0.2, x + 4.1]) for (const pz of [z - 1.7, z + 1.6]) addBox(px, 0, pz, px + 0.1, 2.6, pz + 0.1, PAL.rail, PAL.rail, 'plain', false, false);
+  }
+}
+
+const DISTRICT_NAMES = { woods: 'Old Pine Woods', downtown: 'Downtown', midtown: 'Midtown', north: 'Northside', industrial: 'Harbor Works', park: 'Greenway Park', river: 'Kessel River', airport: 'Kessel Field Airport', south: 'Southport Airport' };
 function districtAt(bx, bz) {
   if (bx < -half) return 'woods';
   if (bz === 4 || bz === 5) return 'river';
   if (bx >= half) return 'airport';
+  if (bz < -half) return 'south';
   if ((bx >= -7 && bx <= -5 && bz >= -4 && bz <= -2) || (bz === 6 && bx >= -4 && bx <= -1)) return 'park';
-  if (bx >= 6) return 'industrial';
-  if (Math.hypot(bx * PERIOD + 32, bz * PERIOD + 32) < 300) return 'downtown';
+  if (bx >= 9) return 'industrial';
+  if (Math.hypot(bx * PERIOD + 32, bz * PERIOD + 32) < 380) return 'downtown';
   if (bz >= 6) return 'north';
   return 'midtown';
 }
@@ -789,75 +867,88 @@ for (let bx = -half; bx < half; bx++) for (let bz = -half; bz < half; bz++) {
     if (r < 0.06) construction(ox, oz);
     else if (r < 0.12) decoTower(ox + 6, oz + 6, ox + 38, oz + 38, 80 + rand() * 70);
     else if (r < 0.17) garage(ox, oz);
+    else if (r < 0.26) hotel(ox, oz, 50, 110);
+    else if (r < 0.31) restaurantRow(ox, oz);
     else officeBlock(ox, oz, core, 0.45);
   } else if (d === 'north') {
     if (bx === 3 && bz === 8) stadium(ox, oz);
-    else if (r < 0.4) rowhouses(ox, oz);
-    else if (r < 0.76) apartments(ox, oz, 16, 38);
-    else if (r < 0.82) church(ox, oz);
-    else if (r < 0.88) gasStation(ox, oz);
-    else if (r < 0.94) plaza(ox, oz);
+    else if (r < 0.34) rowhouses(ox, oz);
+    else if (r < 0.64) apartments(ox, oz, 16, 38);
+    else if (r < 0.7) church(ox, oz);
+    else if (r < 0.75) gasStation(ox, oz);
+    else if (r < 0.8) plaza(ox, oz);
+    else if (r < 0.87) market(ox, oz);
+    else if (r < 0.95) restaurantRow(ox, oz);
     else park(ox, oz, false);
   } else { // midtown
     const core = Math.max(0.2, 1 - dist / 520);
-    if (r < 0.3) officeBlock(ox, oz, core, 0.15);
-    else if (r < 0.52) apartments(ox, oz, 18, 50);
-    else if (r < 0.62) rowhouses(ox, oz);
-    else if (r < 0.69) plaza(ox, oz);
-    else if (r < 0.73) construction(ox, oz);
+    if (r < 0.24) officeBlock(ox, oz, core, 0.15);
+    else if (r < 0.31) hotel(ox, oz, 35, 80);
+    else if (r < 0.47) apartments(ox, oz, 18, 50);
+    else if (r < 0.54) rowhouses(ox, oz);
+    else if (r < 0.59) plaza(ox, oz);
+    else if (r < 0.65) market(ox, oz);
+    else if (r < 0.72) restaurantRow(ox, oz);
+    else if (r < 0.75) construction(ox, oz);
     else if (r < 0.79) garage(ox, oz);
     else if (r < 0.84) gasStation(ox, oz);
-    else if (r < 0.88) church(ox, oz);
+    else if (r < 0.87) church(ox, oz);
     else officeBlock(ox, oz, core * 0.6, 0);
   }
   if (rand() < 0.3) busShelter(ox, oz);
 }
 
 // Old Pine Woods: a forest past the west edge of the city
-parks.push([-1150, -760, -778, 760]);
-for (let i = 0; i < 520; i++) {
-  const x = -1120 + rand() * 335, z = -740 + rand() * 1480;
+parks.push([-1360, -980, -978, 980]);
+for (let i = 0; i < 700; i++) {
+  const x = -1340 + rand() * 350, z = -960 + rand() * 1920;
   if (z > RIVER_Z0 - 4 && z < RIVER_Z1 + 4) continue;
   tree(x, z, 0.8 + rand() * 0.8, pick(['pine', 'pine', 'oak', 'birch']));
 }
-footprints.push([-1150, -760, -778, 760, 0, 'park']);
+footprints.push([-1360, -980, -978, 980, 0, 'park']);
 
-// Kessel Field: a little airport past the east edge of town. The plane waits at the west end of the runway, nose down it.
-const AIRPORT = { x: 880, z: -200, yaw: -Math.PI / 2 };
-{
-  parks.push([790, -600, 1580, 240]); footprints.push([790, -600, 1580, 240, 0, 'park']);
-  decals.push([840, -215, 1540, -185, 0.015, '#3f3e45'], [860, -185, 1190, -75, 0.015, '#3f3e45']); // runway and apron
-  footprints.push([840, -215, 1540, -185, 0, 'runway'], [860, -185, 1190, -75, 0, 'runway']);
-  const white = C('#ece8e0'), lamp = C('#ffd28a');
-  for (let x = 870; x < 1500; x += 30) addBox(x, 0, -200.5, x + 15, 0.06, -199.5, white, white, 'plain', false, false); // centre line
-  for (const xs of [842, 1518]) for (let k = 0; k < 8; k++) { const z = -213.5 + k * 3.5 + (k >= 4 ? 1.5 : 0); addBox(xs, 0, z, xs + 20, 0.06, z + 1.6, white, white, 'plain', false, false); }
-  for (let x = 845; x <= 1535; x += 35) for (const z of [-216, -184]) addBox(x - 0.2, 0, z - 0.2, x + 0.2, 0.5, z + 0.2, lamp, lamp, 'plain', false, false); // edge lights
-  building(880, -70, 1000, -40, 14, 'glass', 'terminal');
-  addBox(1020, 0, -66, 1026, 32, -60, PAL.concrete, PAL.concrete, 'plain');                  // control tower
-  addBox(1017, 32, -69, 1029, 37, -57, C('#9fc4d6'), PAL.roof[1], 'glass');
-  addBox(1016.5, 37, -69.5, 1029.5, 37.6, -56.5, PAL.concrete, PAL.roof[0], 'plain');
-  footprints.push([1017, -69, 1029, -57, 37, 'tower']);
-  const mc = pick(PAL.metal), HH = 15;                                                         // hangar, open toward the runway
-  addBox(1060, 0, -100.6, 1120, HH, -100, mc, mc, 'metal');
-  addBox(1060, 0, -140, 1060.6, HH, -100.6, mc, mc, 'metal'); addBox(1119.4, 0, -140, 1120, HH, -100.6, mc, mc, 'metal');
-  addBox(1059.5, HH, -141, 1120.5, HH + 0.8, -99.5, mc, PAL.roof[2], 'metal');
-  footprints.push([1060, -140, 1120, -100, HH, 'hangar']);
-  addBox(1180, 0, -230, 1180.3, 7, -229.7, PAL.rail, PAL.rail, 'plain');                      // windsock
-  addBox(1180.3, 6, -230.4, 1183.5, 6.8, -229.6, C('#ff6a1f'), C('#ff6a1f'), 'plain', false);
+// Two airports, each with a runway along x and an apron, gate, terminal, control tower and hangar on its north side.
+// The jet waits at the west end of a runway, nose pointing down it; passengers wait at the gate beside it.
+const AIRPORTS = [
+  { name: 'Kessel Field', rx0: 1050, rx1: 1750, z: -200, grass: [1000, -600, 1790, 240] },
+  { name: 'Southport', rx0: -620, rx1: 80, z: -1350, grass: [-670, -1750, 120, -1050] }
+];
+for (const a of AIRPORTS) {
+  const { rx0, rx1, z } = a, white = C('#ece8e0'), lamp = C('#ffd28a'), tarmac = '#3f3e45';
+  a.home = [rx0 + 60, z]; a.yaw = -Math.PI / 2; a.gate = [rx0 + 65, z + 35]; a.gateV = new THREE.Vector3(rx0 + 65, 0, z + 35);
+  a.waiting = 24 + Math.floor(rand() * 12); a.arrivals = 0; a.arrivalT = 0;
+  parks.push(a.grass); footprints.push([...a.grass, 0, 'park']);
+  decals.push([rx0, z - 25, rx1, z + 25, 0.015, tarmac], [rx0 + 20, z + 25, rx0 + 350, z + 125, 0.015, tarmac], [a.gate[0] - 7, a.gate[1] - 3, a.gate[0] + 7, a.gate[1] + 12, 0.04, '#2f6a8f']);
+  footprints.push([rx0, z - 25, rx1, z + 25, 0, 'runway'], [rx0 + 20, z + 25, rx0 + 350, z + 125, 0, 'runway']);
+  for (let x = rx0 + 30; x < rx1 - 40; x += 30) addBox(x, 0, z - 0.5, x + 15, 0.06, z + 0.5, white, white, 'plain', false, false); // centre line
+  for (const xs of [rx0 + 2, rx1 - 22]) for (let k = 0; k < 8; k++) { const zz = z - 23 + k * 5.5 + (k >= 4 ? 2 : 0); addBox(xs, 0, zz, xs + 20, 0.06, zz + 1.6, white, white, 'plain', false, false); }
+  for (let x = rx0 + 5; x <= rx1 - 5; x += 35) for (const zz of [z - 26, z + 26]) addBox(x - 0.2, 0, zz - 0.2, x + 0.2, 0.5, zz + 0.2, lamp, lamp, 'plain', false, false);
+  building(rx0 + 40, z + 130, rx0 + 160, z + 160, 14, 'glass', 'terminal');
+  addBox(rx0 + 180, 0, z + 134, rx0 + 186, 32, z + 140, PAL.concrete, PAL.concrete, 'plain');           // control tower
+  addBox(rx0 + 177, 32, z + 131, rx0 + 189, 37, z + 143, C('#9fc4d6'), PAL.roof[1], 'glass');
+  addBox(rx0 + 176.5, 37, z + 130.5, rx0 + 189.5, 37.6, z + 143.5, PAL.concrete, PAL.roof[0], 'plain');
+  footprints.push([rx0 + 177, z + 131, rx0 + 189, z + 143, 37, 'tower']);
+  const mc = pick(PAL.metal), HH = 15;                                                                  // hangar, open toward the runway
+  addBox(rx0 + 220, 0, z + 99.4, rx0 + 280, HH, z + 100, mc, mc, 'metal');
+  addBox(rx0 + 220, 0, z + 60, rx0 + 220.6, HH, z + 99.4, mc, mc, 'metal'); addBox(rx0 + 279.4, 0, z + 60, rx0 + 280, HH, z + 99.4, mc, mc, 'metal');
+  addBox(rx0 + 219.5, HH, z + 59, rx0 + 280.5, HH + 0.8, z + 100.5, mc, PAL.roof[2], 'metal');
+  footprints.push([rx0 + 220, z + 60, rx0 + 280, z + 100, HH, 'hangar']);
+  addBox(rx0 + 340, 0, z - 45, rx0 + 340.3, 7, z - 44.7, PAL.rail, PAL.rail, 'plain');                  // windsock
+  addBox(rx0 + 340.3, 6, z - 45.4, rx0 + 343.5, 6.8, z - 44.6, C('#ff6a1f'), C('#ff6a1f'), 'plain', false);
 }
 
 // the elevated train: a concrete viaduct over the avenue at z = -128 with grindable rails on top
 {
-  const z = -2 * PERIOD, conc = C('#a8a49f');
-  addBox(-772, 12, z - 1.7, 772, 13.6, z + 1.7, conc, C('#6d6a66'), 'plain');
-  for (const zz of [z - 1.1, z + 0.95]) addBox(-772, 13.6, zz, 772, 13.8, zz + 0.15, PAL.rail, C('#c9ccd1'), 'plain');
-  for (let x = -736; x < 770; x += PERIOD) addBox(x - 0.8, 0, z - 0.8, x + 0.8, 12, z + 0.8, conc, conc, 'plain');
-  footprints.push([-772, z - 1.7, 772, z + 1.7, 14, 'rail']);
+  const z = -2 * PERIOD, conc = C('#a8a49f'), VL = half * PERIOD + 4;
+  addBox(-VL, 12, z - 1.7, VL, 13.6, z + 1.7, conc, C('#6d6a66'), 'plain');
+  for (const zz of [z - 1.1, z + 0.95]) addBox(-VL, 13.6, zz, VL, 13.8, zz + 0.15, PAL.rail, C('#c9ccd1'), 'plain');
+  for (let x = -VL + 36; x < VL - 2; x += PERIOD) addBox(x - 0.8, 0, z - 0.8, x + 0.8, 12, z + 0.8, conc, conc, 'plain');
+  footprints.push([-VL, z - 1.7, VL, z + 1.7, 14, 'rail']);
 }
 
 // river: embankments, a bridge on every north-south street, and the red suspension bridge on the main avenue
 {
-  const W = 1600;
+  const W = 2400;
   addBox(-W, -6, RIVER_Z0, W, -0.04, RIVER_Z0 + 0.8, PAL.concrete, PAL.concrete, 'plain', true, false);
   addBox(-W, -6, RIVER_Z1 - 0.8, W, -0.04, RIVER_Z1, PAL.concrete, PAL.concrete, 'plain', true, false);
   for (let k = -half; k <= half; k++) {
@@ -926,18 +1017,40 @@ const AIRPORT = { x: 880, z: -200, yaw: -Math.PI / 2 };
     return g;
   };
   const groundMat = new THREE.MeshLambertMaterial({ map: groundTexture() });
-  for (const [z0, z1] of [[-1600, RIVER_Z0], [RIVER_Z1, 1600]]) {
-    const m = new THREE.Mesh(quad(-1600, z0, 1600, z1, 0, PERIOD), groundMat); m.receiveShadow = true; scene.add(m);
+  for (const [z0, z1] of [[-2400, RIVER_Z0], [RIVER_Z1, 2400]]) {
+    const m = new THREE.Mesh(quad(-2400, z0, 2400, z1, 0, PERIOD), groundMat); m.receiveShadow = true; scene.add(m);
   }
   const waterMat = new THREE.MeshPhongMaterial({ color: 0x24404f, specular: 0xffb27a, shininess: 90, emissive: 0x0b1820, flatShading: true });
   { // a fine grid so the river can roll with waves
-    const g = new THREE.PlaneGeometry(3200, RIVER_Z1 - RIVER_Z0, 320, 10);
+    const g = new THREE.PlaneGeometry(4800, RIVER_Z1 - RIVER_Z0, 480, 10);
     g.rotateX(-Math.PI / 2); g.translate(0, RIVER_Y, (RIVER_Z0 + RIVER_Z1) / 2);
     riverMesh = new THREE.Mesh(g, waterMat); riverMesh.frustumCulled = false; scene.add(riverMesh);
   }
   const onTop = { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 };
   const grassMat = new THREE.MeshLambertMaterial({ map: grassTexture(), ...onTop });
   for (const [x0, z0, x1, z1, y, c] of decals) { const m = new THREE.Mesh(quad(x0, z0, x1, z1, y + 0.01, PERIOD), new THREE.MeshLambertMaterial({ color: c, ...onTop })); m.receiveShadow = true; scene.add(m); }
+  { // neon signs
+    const N = SIGN_WORDS.length, c = document.createElement('canvas'); c.width = 512; c.height = 64 * N;
+    const g = c.getContext('2d');
+    SIGN_WORDS.forEach(([word, col], i) => {
+      const y = i * 64;
+      g.fillStyle = '#140f1c'; g.fillRect(0, y, 512, 64);
+      g.strokeStyle = col; g.lineWidth = 3; g.strokeRect(6, y + 6, 500, 52);
+      g.font = 'bold 44px "Arial Black", Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.shadowColor = col; g.shadowBlur = 14; g.fillStyle = col; g.fillText(word, 256, y + 34); g.shadowBlur = 0;
+    });
+    const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
+    const pos = [], uv = [];
+    for (const sg of signs) {
+      const rx = sg.nz, rz = -sg.nx, hw = sg.w / 2, hh = sg.w / 16, v0 = 1 - (sg.i + 1) / N, v1 = 1 - sg.i / N;
+      const q = (sx, sy) => [sg.x + rx * hw * sx + sg.nx * 0.06, sg.y + hh * sy, sg.z + rz * hw * sx + sg.nz * 0.06];
+      const a = q(-1, -1), b = q(1, -1), cc = q(1, 1), d = q(-1, 1);
+      pos.push(...a, ...b, ...cc, ...a, ...cc, ...d); uv.push(0, v0, 1, v0, 1, v1, 0, v0, 1, v1, 0, v1);
+    }
+    const sgeo = new THREE.BufferGeometry();
+    sgeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); sgeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    scene.add(new THREE.Mesh(sgeo, new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })));
+  }
   for (const [x0, z0, x1, z1] of parks) { const m = new THREE.Mesh(quad(x0, z0, x1, z1, 0.01, 8), grassMat); m.receiveShadow = true; scene.add(m); }
   const pond = new THREE.Mesh(new THREE.CircleGeometry(14, 32), new THREE.MeshPhongMaterial({ color: 0x24404f, specular: 0xffb27a, shininess: 90, emissive: 0x0b1820, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }));
   pond.rotation.x = -Math.PI / 2; pond.position.set(-6 * PERIOD + 32, 0.02, -3 * PERIOD + 32); scene.add(pond);
@@ -987,7 +1100,7 @@ const rings = [];
     const k = Math.floor(r2() * (NB - 1)) - half + 1; // street index
     const t = (r2() - 0.5) * (NB - 2) * PERIOD * 0.8;
     const pos = alongX ? new THREE.Vector3(t, 0, k * PERIOD) : new THREE.Vector3(k * PERIOD, 0, t);
-    if (Math.hypot(pos.x, pos.z) > 560) continue;
+    if (Math.hypot(pos.x, pos.z) > 760) continue;
     if (Math.abs(pos.x) < 16 && pos.z > RIVER_Z0 - 80 && pos.z < RIVER_Z1 + 80) continue;
     pos.y = 22 + r2() * 70;
     if (rings.some(r => r.pos.distanceTo(pos) < 80)) continue;
@@ -1014,7 +1127,7 @@ function instanced(geo, mat, n, shadow) {
   scene.add(im); return im;
 }
 const cars = [];
-const NCARS = 520;
+const NCARS = 820;
 const carMesh = (() => {
   const body = new THREE.BoxGeometry(1.9, 0.75, 4.3); body.translate(0, 0.58, 0);
   const cab = new THREE.BoxGeometry(1.66, 0.6, 2.2); cab.translate(0, 1.25, 0.25);
@@ -1092,7 +1205,8 @@ function updateTraffic(dt) {
 
 // ---------- elevated train ----------
 const TRAIN_Z = -2 * PERIOD, TRAIN_Y = 13.8;
-const train = { x: -700, dir: 1, speed: 0, wait: 0, cars: [] };
+const TRAIN_END = half * PERIOD - 70;
+const train = { x: -TRAIN_END, dir: 1, speed: 0, wait: 0, cars: [] };
 {
   for (let i = 0; i < 3; i++) {
     const g = new THREE.Group(); scene.add(g);
@@ -1108,7 +1222,7 @@ function updateTrain(dt) {
   else {
     train.speed = Math.min(16, train.speed + 3 * dt);
     train.x += train.dir * train.speed * dt;
-    if (train.x > 700 || train.x < -700) { train.x = clamp(train.x, -700, 700); train.dir *= -1; train.wait = 4; }
+    if (train.x > TRAIN_END || train.x < -TRAIN_END) { train.x = clamp(train.x, -TRAIN_END, TRAIN_END); train.dir *= -1; train.wait = 4; }
   }
   train.cars.forEach((c, i) => {
     const x = train.x - train.dir * i * 14.2;
@@ -1120,7 +1234,7 @@ function updateTrain(dt) {
 
 // ---------- pedestrians ----------
 const peds = [];
-const NPEDS = 900;
+const NPEDS = 1300;
 const pedMesh = (() => {
   const body = new THREE.BoxGeometry(0.44, 0.66, 0.26); body.translate(0, 1.17, 0);
   const head = new THREE.SphereGeometry(0.13, 10, 8); head.translate(0, 1.64, 0);
@@ -1923,7 +2037,7 @@ function updateAudio(dt, speed, hs) {
   set(audio.storm.g.gain, live && stormD < 260 ? clamp(1 - stormD / 260, 0, 1) * 0.6 * a.alive : 0, 0.3);
   const inPlane = P.mode === 'plane';
   set(audio.engG.gain, live && (P.bike || inPlane) ? (inPlane ? 0.07 : 0.045) : 0);
-  set(audio.eng.frequency, inPlane ? 48 + plane.speed * 0.8 + (plane.boost ? 22 : 0) : 55 + hs * 7 + (P.bikeBoost ? 25 : 0), 0.06);
+  set(audio.eng.frequency, inPlane ? 85 + plane.speed * 0.9 + (plane.boost ? 30 : 0) : 55 + hs * 7 + (P.bikeBoost ? 25 : 0), 0.06);
   // footsteps on the run cycle
   if (live && P.onGround && P.mode === 'foot' && !P.hover && !P.bike && hs > 1.5) {
     const ph = Math.floor(P.anim / Math.PI);
@@ -2460,7 +2574,7 @@ function step(dt) {
         else if (!P.bike) deploy();
         jumpPressed = false;
       }
-      if (suitPressed) { if (!P.onGround && !P.bike) deploy(); else if (P.onGround && nearPlane()) enterPlane(); suitPressed = false; }
+      if (suitPressed) { if (nearPlane()) enterPlane(); else if (!P.onGround && !P.bike) deploy(); suitPressed = false; }
     }
     P.wish = [wx, wz];
   }
@@ -2734,7 +2848,7 @@ function nearStreetSpot(cx, cz, f) { // a sidewalk spot beside a building footpr
   return { pos: new THREE.Vector3(cx, 0, zt + 8.2), alongX: true };
 }
 function pickBuilding(near, minD, maxD, minH, maxH) {
-  const ok = ['office', 'glass', 'brick', 'apartment', 'deco', 'house'];
+  const ok = ['office', 'glass', 'brick', 'apartment', 'deco', 'house', 'hotel'];
   const c = footprints.filter(f => ok.includes(f[5]) && f[4] >= minH && f[4] <= maxH && f[2] - f[0] >= 9 && f[3] - f[1] >= 9 && !overWater((f[0] + f[2]) / 2, (f[1] + f[3]) / 2)
     && (f[0] + f[2]) / 2 !== 32 && (() => { const d = Math.hypot((f[0] + f[2]) / 2 - near.x, (f[1] + f[3]) / 2 - near.z); return d > minD && d < maxD; })());
   return c.length ? c[Math.floor(Math.random() * c.length)] : null;
@@ -2756,7 +2870,7 @@ function startDisaster(type) {
     for (const k of ['person', 'person', 'person', 'cat']) placeVictim(k, roofSpot(f));
     const s = nearStreetSpot(cx, cz, f); DIS.evac = makeEvac(s.pos, 'truck', s.alongX);
   } else if (type === 'flood') {
-    const cx = clamp(p.x, -560, 560), cz = (RIVER_Z0 + RIVER_Z1) / 2;
+    const cx = clamp(p.x, -760, 760), cz = (RIVER_Z0 + RIVER_Z1) / 2;
     DIS.active = { type, cx, cz, t: 0, level: RIVER_Y, x0: cx - 230, x1: cx + 230, z0: RIVER_Z0 - 74, z1: RIVER_Z1 + 74, props: [] };
     const water = new THREE.Mesh(new THREE.PlaneGeometry(460, RIVER_Z1 - RIVER_Z0 + 148), new THREE.MeshPhongMaterial({ color: 0x55665a, specular: 0xffb27a, shininess: 60, transparent: true, opacity: 0.82 }));
     water.rotation.x = -Math.PI / 2; water.position.set(cx, RIVER_Y, cz); scene.add(water); DIS.active.water = water;
@@ -2783,8 +2897,8 @@ function startDisaster(type) {
     DIS.evac = makeEvac(spot, 'heli', true);
   } else { // tornado: crosses the city past you, sweeping up a dog; more people stranded on a roof
     const a = Math.random() * Math.PI * 2, dx = Math.cos(a), dz = Math.sin(a);
-    const from = new THREE.Vector3(clamp(p.x + dx * 260, -700, 700), 0, clamp(p.z + dz * 260, -700, 700));
-    const to = new THREE.Vector3(clamp(p.x - dx * 260 + dz * 60, -700, 700), 0, clamp(p.z - dz * 260 - dx * 60, -700, 700));
+    const from = new THREE.Vector3(clamp(p.x + dx * 260, -900, 900), 0, clamp(p.z + dz * 260, -900, 900));
+    const to = new THREE.Vector3(clamp(p.x - dx * 260 + dz * 60, -900, 900), 0, clamp(p.z - dz * 260 - dx * 60, -900, 900));
     const mid = from.clone().lerp(to, 0.5);
     DIS.active = { type: 'tornado', cx: mid.x, cz: mid.z, from, to, pos: from.clone(), t: 0, dur: from.distanceTo(to) / 8, alive: 1 };
     makeFunnel();
@@ -3063,34 +3177,66 @@ function updateRiver(dt) {
   pos.needsUpdate = true;
 }
 
-// ---------- airplane ----------
-// A little high-wing prop plane. Origin is under the wheels; it faces -z like everything else.
+// ---------- passenger jet ----------
+// A twin-engine airliner. Origin is under the wheels; it faces -z like everything else.
 const planeMesh = new THREE.Group(); planeMesh.rotation.order = 'YXZ'; scene.add(planeMesh);
-const propeller = new THREE.Group(); propeller.position.set(0, 1.7, -4.8); planeMesh.add(propeller);
 {
-  const add = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; (parent || planeMesh).add(m); return m; };
-  const white = M(0xf3ece2), orange = M(0xff6a1f), dark = M(0x2b2d33), glass = M(0x2a3a4a), rubber = M(0x18181c);
-  const body = new THREE.CylinderGeometry(0.45, 0.85, 7.5, 16); body.rotateX(Math.PI / 2); add(body, white, 0, 1.7, 0.2);
-  const nose = new THREE.ConeGeometry(0.85, 1.2, 16); nose.rotateX(-Math.PI / 2); add(nose, orange, 0, 1.7, -4.15);
-  add(box(0.22, 2.6, 0.06), dark, 0, 0, 0, propeller); add(ball(0.18), orange, 0, 0, 0.05, propeller);
-  add(ball(1, 0.62, 0.5, 1.2), glass, 0, 2.3, -1.6);                 // canopy
-  add(box(1.42, 0.32, 1.3), glass, 0, 2.0, -0.4);                    // side windows
-  add(box(1.4, 0.12, 3), orange, 0, 1.45, 0);                        // stripe
-  add(box(11.2, 0.16, 1.7), white, 0, 2.45, -0.7);                   // wing
+  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; planeMesh.add(m); return m; };
+  const white = M(0xf3ece2), orange = M(0xff6a1f), dark = M(0x2b2d33), glass = M(0x1c2a3a), grey = M(0xb9bcc2), rubber = M(0x18181c);
+  const along = g => { g.rotateX(Math.PI / 2); return g; }; // cylinders and cones point down the fuselage
+  add(along(new THREE.CylinderGeometry(2, 2, 26, 20)), white, 0, 3.6, 0);                 // fuselage
+  add(ball(2, 1, 1, 2.2), white, 0, 3.6, -13);                                           // nose
+  add(along(new THREE.ConeGeometry(2, 6, 20)), white, 0, 3.6, 16);                       // tail cone
+  add(box(2.6, 0.5, 1.4), glass, 0, 4.5, -15.6);                                         // cockpit windows
   for (const s of [-1, 1]) {
-    add(box(0.5, 0.18, 1.72), orange, s * 5.35, 2.45, -0.7);         // wingtips
-    add(box(0.07, 2.0, 0.07), dark, s * 1.6, 1.95, -0.7).rotation.z = -s * 1.1; // struts
-    add(box(0.09, 0.93, 0.09), dark, s * 0.75, 0.71, -0.3).rotation.z = s * 0.57; // main gear
-    add(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 14), rubber, s * 1.0, 0.32, -0.3).rotation.z = Math.PI / 2;
+    add(box(0.1, 0.35, 22), glass, s * 1.95, 4.1, -1);                                   // cabin windows
+    add(box(0.1, 0.3, 30), orange, s * 1.92, 3.0, 0);                                    // cheat line
+    add(box(13, 0.45, 4.2), white, s * 8, 2.6, 1.5).rotation.y = -s * 0.42;              // swept wings
+    add(box(0.3, 1.6, 1.4), orange, s * 13.9, 3.4, 4.6);                                 // winglets
+    add(along(new THREE.CylinderGeometry(0.95, 0.95, 3.6, 16)), grey, s * 6, 1.55, -0.6); // engines
+    add(along(new THREE.CylinderGeometry(0.8, 0.8, 0.12, 16)), dark, s * 6, 1.55, -2.43);
+    add(box(0.3, 0.8, 2), grey, s * 6, 2.2, 0);                                          // pylons
+    add(box(6, 0.3, 2.4), white, s * 3.2, 4.4, 17).rotation.y = -s * 0.4;                // tailplane
+    add(box(0.25, 1.4, 0.25), dark, s * 2.5, 0.95, 2);                                   // main gear
+    for (const z of [1.4, 2.6]) add(new THREE.CylinderGeometry(0.55, 0.55, 0.5, 14), rubber, s * 2.5, 0.55, z).rotation.z = Math.PI / 2;
   }
-  add(box(3.8, 0.1, 1.1), white, 0, 1.95, 3.5);                      // tailplane
-  add(box(0.1, 1.5, 1.3), orange, 0, 2.6, 3.55);                     // fin
-  add(box(0.08, 0.9, 0.08), dark, 0, 0.75, -3.2);                    // nose gear
-  add(new THREE.CylinderGeometry(0.26, 0.26, 0.16, 12), rubber, 0, 0.26, -3.2).rotation.z = Math.PI / 2;
+  add(box(0.4, 7, 4.5), orange, 0, 8.2, 15.5).rotation.x = 0.45;                         // fin
+  add(box(0.25, 1.6, 0.25), dark, 0, 0.95, -12);                                         // nose gear
+  add(new THREE.CylinderGeometry(0.5, 0.5, 0.4, 14), rubber, 0, 0.5, -12).rotation.z = Math.PI / 2;
 }
-const plane = { pos: new THREE.Vector3(AIRPORT.x, 0, AIRPORT.z), yaw: AIRPORT.yaw, pitch: 0, roll: 0, speed: 0, onGround: true, auto: 0, hinted: false, boost: false, prop: 0 };
+// passengers waiting at each gate (and the ones just off a flight, walking to the terminal)
+const CROWD = 40;
+const crowdMesh = (() => {
+  const n = AIRPORTS.length * CROWD * 2;
+  const body = new THREE.BoxGeometry(0.44, 0.66, 0.26); body.translate(0, 1.17, 0);
+  const head = new THREE.SphereGeometry(0.13, 10, 8); head.translate(0, 1.64, 0);
+  const legs = new THREE.BoxGeometry(0.32, 0.84, 0.18); legs.translate(0, 0.42, 0);
+  const ms = [instanced(body, new THREE.MeshLambertMaterial(), n, true), instanced(head, new THREE.MeshLambertMaterial(), n, true), instanced(legs, new THREE.MeshLambertMaterial(), n, true)];
+  const shirts = ['#c0443a', '#2f5d8a', '#e3c86a', '#3f7a5a', '#d9d4cc', '#7a4f8f', '#e07a3a', '#8fb3c9'].map(C), skins = ['#f1c6a4', '#d9a27e', '#a86f4c', '#7a4a32', '#4f3020'].map(C), pants = ['#24262e', '#3a3f55', '#5a4a3a', '#6b6f78'].map(C);
+  for (let i = 0; i < n; i++) { ms[0].setColorAt(i, shirts[i * 7 % shirts.length]); ms[1].setColorAt(i, skins[i * 3 % skins.length]); ms[2].setColorAt(i, pants[i * 5 % pants.length]); }
+  return ms;
+})();
+const crowdM = new THREE.Matrix4(), crowdQ = new THREE.Quaternion(), crowdP = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+function updateCrowds(dt, now) {
+  AIRPORTS.forEach((a, ai) => {
+    if (a.arrivalT > 0 && (a.arrivalT -= dt) <= 0) a.arrivals = 0;
+    for (let i = 0; i < CROWD * 2; i++) {
+      const arr = i >= CROWD, k = arr ? i - CROWD : i, show = arr ? k < a.arrivals : k < a.waiting;
+      crowdP.set(a.gate[0] - 4.5 + (k % 8) * 1.3 + (arr ? 12 : 0), show ? Math.abs(Math.sin(now / 200 + k)) * (arr ? 0.06 : 0.03) : -50,
+        a.gate[1] + Math.floor(k / 8) * 1.3 + (arr ? (7 - a.arrivalT) * 1.6 : 0));
+      crowdQ.setFromAxisAngle(UP, arr ? Math.PI : 0); // waiting: facing the runway; arriving: walking to the terminal
+      crowdM.compose(crowdP, crowdQ, ONE);
+      for (const m of crowdMesh) m.setMatrixAt(ai * CROWD * 2 + i, crowdM);
+    }
+  });
+  for (const m of crowdMesh) m.instanceMatrix.needsUpdate = true;
+}
+let paxTotal = parseInt(store.get('vertigo-pax')) || 0;
+$('pax').textContent = paxTotal;
+const plane = { pos: new THREE.Vector3(), yaw: 0, pitch: 0, roll: 0, speed: 0, onGround: true, auto: 0, hinted: false, boost: false,
+  base: 0, pax: 0, origin: 0, dest: null, deplaning: 0, boardT: 0 };
 const planeFwd = new THREE.Vector3(), planeProbe = new THREE.Object3D(); planeProbe.rotation.order = 'YXZ';
-const PLANE_PTS = [[0, 1.7, -5], [-5.6, 2.45, -0.7], [5.6, 2.45, -0.7], [0, 2.0, 4], [0, 3.3, 3.6]].map(a => new THREE.Vector3(...a)); // nose, wingtips, tail, fin
+const PLANE_PTS = [[0, 3.6, -17.5], [-14, 2.6, 4.2], [14, 2.6, 4.2], [0, 11, 16.8], [0, 3.6, 19], [0, 5.6, -10]].map(a => new THREE.Vector3(...a)); // nose, wingtips, fin, tail, roof
 let planeWater = false, planeEdgeMsg = 0;
 function planeFloor(x, y, z) { // the highest thing under the wheels; the river counts as water
   query(x, z, x, z, near); let g = overWater(x, z) ? RIVER_Y : 0;
@@ -3102,59 +3248,97 @@ function planeHit() {
   planeProbe.position.copy(P.pos); planeProbe.rotation.set(plane.pitch, plane.yaw, -plane.roll); planeProbe.updateMatrixWorld(true);
   for (const q of PLANE_PTS) {
     tmp.copy(q).applyMatrix4(planeProbe.matrixWorld);
-    if (solidAt(tmp.x, tmp.y, tmp.z) || (tmp.y < -0.05 && !overWater(tmp.x, tmp.z))) return true;
+    if (solidAt(tmp.x, tmp.y, tmp.z)) return true; // only buildings and things count: the touchdown check handles the ground
   }
   return false;
 }
-function resetPlane() {
-  plane.pos.set(AIRPORT.x, 0, AIRPORT.z); plane.yaw = AIRPORT.yaw;
-  plane.pitch = plane.roll = plane.speed = plane.auto = 0; plane.onGround = true;
+function resetPlane() { // back at its airport; anyone aboard goes back to the gate they came from
+  const A = plane, a = AIRPORTS[A.base];
+  if (A.pax) { const o = AIRPORTS[A.origin]; o.waiting = Math.min(CROWD, o.waiting + A.pax); }
+  A.pax = A.deplaning = 0; A.dest = null;
+  A.pos.set(a.home[0], 0, a.home[1]); A.yaw = a.yaw;
+  A.pitch = A.roll = A.speed = A.auto = 0; A.onGround = true;
 }
-function nearPlane() {
-  return plane.onGround && plane.auto <= 0 && Math.hypot(P.pos.x - plane.pos.x, P.pos.z - plane.pos.z) < 7 && Math.abs(P.pos.y - plane.pos.y) < 3;
+resetPlane();
+function nearPlane(margin = 0) { // anywhere beside the jet counts: wingtip to wingtip, nose to tail, plus a few metres
+  if (!plane.onGround || plane.auto > 0 || Math.abs(P.pos.y - plane.pos.y) > 5) return false;
+  const dx = P.pos.x - plane.pos.x, dz = P.pos.z - plane.pos.z, c = Math.cos(plane.yaw), sn = Math.sin(plane.yaw);
+  const lx = dx * c - dz * sn, lz = dx * sn + dz * c; // across the wings, and nose (-) to tail (+)
+  return Math.abs(lx) < 18 + margin && lz > -24 - margin && lz < 25 + margin;
 }
 function planeHint() {
   if (P.mode === 'foot' && nearPlane()) {
-    if (!plane.hinted) { plane.hinted = true; message(`Airplane<small>${pad.connected ? 'B' : coarse ? 'SUIT' : 'E'} to get in</small>`, 1.6); }
-  } else if (Math.hypot(P.pos.x - plane.pos.x, P.pos.z - plane.pos.z) > 15) plane.hinted = false;
+    if (!plane.hinted) { plane.hinted = true; message(`Passenger jet<small>${pad.connected ? 'B' : coarse ? 'SUIT' : 'E'} to get in</small>`, 1.6); }
+  } else if (!nearPlane(12)) plane.hinted = false;
 }
 function enterPlane() {
-  if (P.bike) { message('Airplane<small>Get off the motorcycle first</small>', 1.2); return; }
+  if (P.bike) { message('Passenger jet<small>Get off the motorcycle first</small>', 1.2); return; }
   P.mode = 'plane'; P.trick = null; P.pos.copy(plane.pos); P.prevY = plane.pos.y; P.vel.set(0, 0, 0);
   plane.speed = 0; plane.roll = 0; camYaw = plane.yaw;
-  sfx.click(); tone(65, 0.8, 'sawtooth', 0.06, 130);
+  sfx.click(); tone(90, 1.2, 'sawtooth', 0.05, 180);
   const thr = pad.connected ? 'LB' : coarse ? 'RUN' : 'Shift', out = pad.connected ? 'B' : coarse ? 'SUIT' : 'E';
-  message(`Cleared for takeoff<small>${thr} for throttle · hold back past 110 km/h to lift off · ${out} to get out</small>`, 2.8);
+  message(`Captain on board<small>Passengers board while you wait by the gate · ${thr} for throttle · past 160 km/h hold throttle and pull back to lift off · ${out} to get out</small>`, 3.2);
 }
 function exitPlane() {
   const p = P.pos, A = plane;
   if (A.onGround) {
     if (A.speed > 6) { message('Too fast<small>Brake to a stop first</small>', 1); return; }
     A.speed = 0;
-    const rx = Math.cos(A.yaw), rz = -Math.sin(A.yaw);
-    let s = 3.5; if (solidAt(p.x + rx * s, p.y + 1, p.z + rz * s)) s = -3.5; // step out on whichever side is clear
-    p.set(p.x + rx * s, 0, p.z + rz * s); p.y = groundBelow(p.x, A.pos.y + 2, p.z);
+    const fx = -Math.sin(A.yaw), fz = -Math.cos(A.yaw), rx = Math.cos(A.yaw), rz = -Math.sin(A.yaw);
+    let s = -5; if (solidAt(p.x + fx * 9 + rx * s, p.y + 1, p.z + fz * 9 + rz * s)) s = 5; // out the front door, whichever side is clear
+    p.set(p.x + fx * 9 + rx * s, 0, p.z + fz * 9 + rz * s); p.y = groundBelow(p.x, A.pos.y + 2, p.z);
     P.vel.set(0, 0, 0); P.mode = 'foot'; P.onGround = true; P.faceYaw = A.yaw; P.prevY = p.y;
     sfx.click();
-  } else { // bail out: he drops out and the plane flies itself home
-    const f = A.speed * 0.5;
+    if (A.pax) message(`Back soon<small>${A.pax} passengers are waiting aboard</small>`, 1.4);
+  } else if (A.pax) {
+    message('Not with passengers aboard<small>Land the jet first</small>', 1.4); return;
+  } else { // bail out: he drops out and the jet flies itself home
+    const f = A.speed * 0.4;
     P.vel.set(-Math.sin(A.yaw) * f, 2, -Math.cos(A.yaw) * f);
-    p.y -= 2; P.prevY = p.y; P.mode = 'foot'; P.onGround = false; A.auto = 6; sfx.whoosh();
-    message(`Bailed out<small>${pad.connected ? 'A' : 'Space'} to glide · the plane flies itself back to the airport</small>`, 2);
+    p.y -= 3; P.prevY = p.y; P.mode = 'foot'; P.onGround = false; A.auto = 6; sfx.whoosh();
+    message(`Bailed out<small>${pad.connected ? 'A' : 'Space'} to glide · the jet flies itself back to the airport</small>`, 2);
   }
   A.hinted = true;
 }
 function abandonPlane() { if (plane.onGround) plane.speed = 0; else plane.auto = 6; }
 function crashPlane(why, water) {
   const p = P.pos;
-  if (water) { for (let i = 0; i < 80; i++) emit(spray, p.x, p.y + 0.3, p.z, (Math.random() - 0.5) * 12, 3 + Math.random() * 8, (Math.random() - 0.5) * 12, 1.2); sfx.splash(); }
+  if (water) { for (let i = 0; i < 120; i++) emit(spray, p.x + (Math.random() - 0.5) * 10, p.y + 0.3, p.z + (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 14, 3 + Math.random() * 9, (Math.random() - 0.5) * 14, 1.2); sfx.splash(); }
   else {
-    for (let i = 0; i < 140; i++) emit(flames, p.x + (Math.random() - 0.5) * 5, p.y + 1 + Math.random() * 3, p.z + (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 14, Math.random() * 12, (Math.random() - 0.5) * 14, 0.5 + Math.random() * 0.8);
-    for (let i = 0; i < 40; i++) emit(smoke, p.x, p.y + 2, p.z, (Math.random() - 0.5) * 6, 3 + Math.random() * 4, (Math.random() - 0.5) * 6, 3 + Math.random() * 2);
-    noiseHit(1.4, 'lowpass', 1200, 40, 0.7);
+    for (let i = 0; i < 200; i++) emit(flames, p.x + (Math.random() - 0.5) * 14, p.y + 1 + Math.random() * 5, p.z + (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 18, Math.random() * 14, (Math.random() - 0.5) * 18, 0.5 + Math.random() * 0.9);
+    for (let i = 0; i < 60; i++) emit(smoke, p.x, p.y + 3, p.z, (Math.random() - 0.5) * 8, 3 + Math.random() * 5, (Math.random() - 0.5) * 8, 3 + Math.random() * 2);
+    noiseHit(1.6, 'lowpass', 1200, 35, 0.75);
   }
-  resetPlane(); P.mode = 'wreck'; // a fresh plane is waiting at the airport
+  if (plane.pax) why += ' · somehow everyone walked away';
+  resetPlane(); P.mode = 'wreck'; // a fresh jet is waiting at the airport
   wipeout(why);
+}
+// boarding and deplaning: stop near a gate and they file on or off, one every 0.08 s
+function gateWork(dt) {
+  const A = plane;
+  if (A.speed > 2) { A.boardT = 0; return; }
+  const ai = AIRPORTS.findIndex(a => Math.hypot(P.pos.x - a.gate[0], P.pos.z - a.gate[1]) < 55);
+  if (ai < 0 || (A.boardT += dt) < 0.08) return;
+  A.boardT = 0;
+  const a = AIRPORTS[ai];
+  if (A.pax && A.dest === ai) {
+    if (!A.deplaning) { A.deplaning = A.pax; message(`${a.name}<small>Passengers are getting off</small>`, 1.4); }
+    A.pax--; a.arrivals = Math.min(CROWD, a.arrivals + 1); a.arrivalT = 7;
+    if (!A.pax) {
+      paxTotal += A.deplaning; store.set('vertigo-pax', String(paxTotal)); $('pax').textContent = paxTotal;
+      message(`Welcome to ${a.name}<small>${A.deplaning} passengers delivered · new travellers are heading to the gate</small>`, 2.6);
+      sfx.saved(); rumble(0, 0.6, 200);
+      A.deplaning = 0; A.dest = null; A.base = ai; a.waiting = 18 + Math.floor(Math.random() * 20);
+    }
+  } else if (a.waiting && (!A.pax || A.origin === ai)) {
+    if (!A.pax) { A.origin = A.base = ai; A.dest = (ai + 1) % AIRPORTS.length; message('Boarding<small>Hold still while the passengers board</small>', 1.4); }
+    a.waiting--; A.pax++; tone(880 + (A.pax % 4) * 110, 0.05, 'triangle', 0.025);
+    if (!a.waiting) { message(`Boarding complete<small>${A.pax} aboard · fly to ${AIRPORTS[A.dest].name} and roll up to its gate (follow the blue arrow)</small>`, 3); sfx.pickup(); }
+  } else if (!A.pax && !a.waiting && a.arrivalT <= 0) a.waiting = 18 + Math.floor(Math.random() * 20); // nobody here yet: new travellers turn up
+}
+function flightTarget() { // the HUD arrow points at the destination gate while you've got passengers
+  if (P.mode !== 'plane' || !plane.pax || plane.dest === null) return null;
+  const a = AIRPORTS[plane.dest]; return { pos: a.gateV, label: a.name, color: '#7fd0ff' };
 }
 function planeStep(dt, mx, mz) {
   const p = P.pos, v = P.vel, A = plane;
@@ -3164,43 +3348,48 @@ function planeStep(dt, mx, mz) {
   const boost = !!(keys.ShiftLeft || keys.ShiftRight || touchSprint || pad.sprint);
   A.boost = boost;
   if (A.onGround) { // taxi and take-off roll: throttle with Shift or forward, brake by pulling back
-    A.speed = boost || mz > 0.3 ? Math.min(60, A.speed + 9 * dt) : Math.max(0, A.speed - (mz < -0.3 && A.speed < 30 ? 12 : 3) * dt);
-    A.yaw -= mx * 1.1 * dt * Math.min(1, A.speed / 4);
+    A.speed = boost || mz > 0.3 ? Math.min(80, A.speed + 7 * dt) : Math.max(0, A.speed - (mz < -0.3 ? 14 : 3) * dt); // pulling back without throttle brakes
+    A.yaw -= mx * 0.5 * dt * Math.min(1, A.speed / 4);
     A.pitch -= A.pitch * Math.min(1, dt * 5); A.roll -= A.roll * Math.min(1, dt * 5);
     planeFwd.set(-Math.sin(A.yaw), 0, -Math.cos(A.yaw));
     const ox = p.x, oz = p.z;
     p.addScaledVector(planeFwd, A.speed * dt);
     const fl = planeFloor(p.x, p.y + 0.5, p.z);
     if (fl < p.y - 0.6) A.onGround = false; else p.y = fl; // rolled off an edge
-    if (A.speed >= 30 && mz < -0.3) { A.onGround = false; A.pitch = 0.12; sfx.whoosh(); } // rotate and lift off
+    if (A.speed >= 45 && mz < -0.3 && boost) { A.onGround = false; A.pitch = 0.1; A.approachTip = false; sfx.whoosh(); } // throttle + pull back: rotate and lift off
     v.copy(planeFwd).multiplyScalar(A.speed);
     if (planeHit()) {
-      if (A.speed > 12) return crashPlane('Crashed the plane');
+      if (A.speed > 10) return crashPlane('Crashed the jet');
       p.x = ox; p.z = oz; A.speed = 0; v.set(0, 0, 0);
     }
+    if (A.onGround) gateWork(dt);
   } else { // flying: bank to turn, pitch to climb or dive, throttle sets the cruise speed
-    A.roll += (clamp(mx + P.mouseTurn, -1.2, 1.2) - A.roll) * Math.min(1, dt * 3);
-    A.yaw -= A.roll * 0.8 * dt;
-    if (mz !== 0) A.pitch -= mz * 0.9 * dt; else A.pitch -= A.pitch * 0.5 * dt;
-    A.speed = clamp(A.speed + ((boost ? 75 : 42) - A.speed) * 0.3 * dt - 9.8 * Math.sin(A.pitch) * dt, 0, 100);
-    if (A.speed < 26) A.pitch -= (26 - A.speed) * 0.05 * dt; // stall: the nose drops
-    A.pitch = clamp(A.pitch, -1.2, 0.9);
-    if (Math.abs(p.x) > 1450 || Math.abs(p.z) > 1450) { // past the edge of the map it turns back toward the city
+    // landing help: near the ground it slows to approach speed, levels the wings and flares on its own
+    const hgt = p.y - planeFloor(p.x, p.y + 2, p.z), assist = !planeWater && hgt < 80;
+    if (assist && hgt < 60 && !A.approachTip) { A.approachTip = true; message('On approach<small>Keep the wings roughly level and ease down · it slows and flares by itself</small>', 2.4); }
+    A.roll += (clamp(mx + P.mouseTurn, -1.1, 1.1) * (assist ? Math.max(0.2, hgt / 80) : 1) - A.roll) * Math.min(1, dt * 2);
+    A.yaw -= A.roll * 0.55 * dt;
+    if (mz !== 0) A.pitch -= mz * 0.6 * dt; else A.pitch -= A.pitch * 0.5 * dt;
+    A.speed = clamp(A.speed + ((boost ? 120 : assist && A.pitch < 0.05 ? 50 : 70) - A.speed) * (assist ? 0.5 : 0.25) * dt - 9.8 * Math.sin(A.pitch) * dt, 0, 140);
+    if (A.speed < 42) A.pitch -= (42 - A.speed) * 0.03 * dt; // stall: the nose drops
+    A.pitch = clamp(A.pitch, -1, 0.7);
+    if (Math.abs(p.x) > 2250 || Math.abs(p.z) > 2250) { // past the edge of the map it turns back toward the city
       let d = Math.atan2(p.x, p.z) - A.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
       A.yaw += clamp(d, -0.9 * dt, 0.9 * dt);
       if ((planeEdgeMsg -= dt) <= 0) { planeEdgeMsg = 6; message('Edge of the map<small>Turning back toward the city</small>', 1.4); }
     }
-    if (p.y > 520) A.pitch = Math.min(A.pitch, 0);
-    const cp = Math.cos(A.pitch), sink = Math.max(0, 30 - A.speed) * 0.5;
+    if (p.y > 600) A.pitch = Math.min(A.pitch, 0);
+    const cp = Math.cos(A.pitch), sink = Math.max(0, 45 - A.speed) * 0.5;
     v.set(-Math.sin(A.yaw) * cp * A.speed, Math.sin(A.pitch) * A.speed - sink, -Math.cos(A.yaw) * cp * A.speed);
+    if (assist && hgt < 30 && A.pitch > -0.45) v.y = Math.max(v.y, -(1.5 + hgt * 0.3)); // the flare: sink rate eases off toward the ground
     p.addScaledVector(v, dt);
-    if (planeHit()) return crashPlane('Crashed the plane');
-    const fl = planeFloor(p.x, p.y + 1.5, p.z);
+    if (planeHit()) return crashPlane('Crashed the jet');
+    const fl = planeFloor(p.x, p.y + 2, p.z);
     if (p.y <= fl) {
       if (planeWater) return crashPlane('Ditched in the river', true);
-      if (v.y < -9 || A.pitch < -0.3 || Math.abs(A.roll) > 0.5) return crashPlane('Hard landing');
+      if (v.y < -12 || A.pitch < -0.45 || Math.abs(A.roll) > 0.4) return crashPlane(A.pitch < -0.45 ? 'Nosedived' : Math.abs(A.roll) > 0.4 ? 'Caught a wingtip' : 'Hard landing');
       p.y = fl; v.y = 0; A.onGround = true; A.pitch = 0; A.roll = 0;
-      sfx.land(8); message('Touchdown<small>Pull back to brake</small>', 1.2);
+      sfx.land(10); message(`Touchdown<small>Pull back to brake${A.pax ? ' · then roll up to the gate' : ''}</small>`, 1.4);
     }
   }
   P.onGround = A.onGround; P.faceYaw = A.yaw;
@@ -3213,8 +3402,7 @@ function updatePlane(dt) {
     A.pos.x -= Math.sin(A.yaw) * A.speed * dt; A.pos.z -= Math.cos(A.yaw) * A.speed * dt;
     if (A.auto <= 0) resetPlane();
   }
-  A.prop += dt * (P.mode === 'plane' ? 25 + A.speed * 0.6 : A.auto > 0 ? 40 : 0);
-  planeMesh.position.copy(A.pos); planeMesh.rotation.set(A.pitch, A.yaw, -A.roll); propeller.rotation.z = A.prop;
+  planeMesh.position.copy(A.pos); planeMesh.rotation.set(A.pitch, A.yaw, -A.roll);
 }
 
 // ---------- game flow ----------
@@ -3305,8 +3493,7 @@ function frameBody(now) {
       P.yaw -= mouseDX * 0.0022; P.pitch = clamp(P.pitch - mouseDY * 0.0018, -1.4, 0.75);
       P.mouseTurn = lerp(P.mouseTurn, clamp(mouseDX * 0.06, -1, 1), Math.min(1, dt * 8));
     } else if (P.mode === 'plane') {
-      plane.yaw -= mouseDX * 0.0015;
-      if (!plane.onGround) plane.pitch = clamp(plane.pitch - mouseDY * 0.0015, -1.2, 0.9);
+      if (!plane.onGround) { plane.yaw -= mouseDX * 0.001; plane.pitch = clamp(plane.pitch - mouseDY * 0.001, -1, 0.7); }
       P.mouseTurn = lerp(P.mouseTurn, clamp(mouseDX * 0.05, -1, 1), Math.min(1, dt * 8));
     } else {
       camYaw -= mouseDX * 0.0025; camPitch = clamp(camPitch + mouseDY * 0.0025, -1.15, 1.25);
@@ -3410,8 +3597,8 @@ function frameBody(now) {
     camYaw += d * Math.min(1, dt * (flying ? 3 : 4));
     camPitch = lerp(camPitch, (flying ? 0.28 : 0.22) - fp * 0.55, Math.min(1, dt * 3));
   }
-  const wantDist = flying ? 15 : sq ? (gliding ? 5.5 : P.bike ? 4.6 : 3.2) : gliding ? 8.5 : 5.5;
-  camTarget.lerp(tmp.set(p.x, p.y + (flying ? 2.6 : sq ? 0.45 : 1.45), p.z), 1 - Math.exp(-dt * 18));
+  const wantDist = flying ? 40 : sq ? (gliding ? 5.5 : P.bike ? 4.6 : 3.2) : gliding ? 8.5 : 5.5;
+  camTarget.lerp(tmp.set(p.x, p.y + (flying ? 6 : sq ? 0.45 : 1.45), p.z), 1 - Math.exp(-dt * 18));
   camDir.set(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch), Math.cos(camYaw) * Math.cos(camPitch));
   const allowed = camRay(camTarget, camDir, wantDist) - 0.35;
   camDist = Math.min(lerp(camDist, wantDist, Math.min(1, dt * 3)), Math.max(0.6, allowed));
@@ -3441,7 +3628,7 @@ function frameBody(now) {
     strand.lookAt(P.anchor.pt);
     strand.scale.set(1, 1, handPos.distanceTo(P.anchor.pt) * P.webT);
   }
-  updateSparks(dt); updatePuff(dt); updateDisaster(dt, now); updateRiver(dt); updateAudio(dt, speed, hs); updatePlane(dt);
+  updateSparks(dt); updatePuff(dt); updateDisaster(dt, now); updateRiver(dt); updateAudio(dt, speed, hs); updatePlane(dt); updateCrowds(dt, now);
   const fade = P.mode === 'elevator' ? (P.elevT < 0.4 ? P.elevT / 0.4 : Math.max(0, 1 - (P.elevT - 0.4) / 0.45)) : 0;
   if (fade !== lastFade) { lastFade = fade; $('fade').style.opacity = fade; }
   for (const s of splats) if (s.visible) {
@@ -3460,7 +3647,7 @@ function frameBody(now) {
     $('spd').textContent = kmh; $('spdBox').classList.toggle('hot', kmh > 120);
     $('alt').textContent = Math.max(0, Math.round(p.y - groundBelow(p.x, p.y, p.z)));
     const mode = $('mode');
-    const label = { foot: P.onGround ? 'On foot' : 'Airborne', glide: 'Gliding', wallrun: 'Wall-run', mantle: 'Vault', grapple: 'Zipping', swing: 'Swinging', climb: 'Climbing', ceiling: 'Upside down', plane: plane.onGround ? 'Taxiing' : 'Flying', elevator: 'Elevator', wreck: 'Crashed' }[P.mode];
+    const label = { foot: P.onGround ? 'On foot' : 'Airborne', glide: 'Gliding', wallrun: 'Wall-run', mantle: 'Vault', grapple: 'Zipping', swing: 'Swinging', climb: 'Climbing', ceiling: 'Upside down', plane: (plane.onGround ? 'Taxiing' : 'Flying') + (plane.pax ? ` · ${plane.pax} aboard` : ''), elevator: 'Elevator', wreck: 'Crashed' }[P.mode];
     const labelTxt = P.mode === 'surf' ? 'Surfing' : P.bike && P.mode === 'foot' ? 'Motorcycle' : sq && P.mode === 'foot' && P.onGround ? 'Squirrel' : P.mode === 'grind' ? 'Grinding' : P.ride && P.mode === 'foot' ? 'Car surfing' : P.hover && P.mode === 'foot' && P.onGround ? 'Hoverboard' : label;
     if (mode.textContent !== labelTxt) { mode.textContent = labelTxt; mode.className = 'chip' + (P.mode === 'glide' || P.mode === 'plane' ? ' glide' : P.mode === 'wallrun' || P.mode === 'grapple' || P.mode === 'swing' || P.mode === 'climb' || P.mode === 'ceiling' ? ' wall' : ''); }
     $('timer').textContent = fmt(clock);
@@ -3470,10 +3657,10 @@ function frameBody(now) {
     $('ringCount').textContent = collected;
     if ($('rescued').textContent !== String(rescuedTotal)) $('rescued').textContent = rescuedTotal;
     let target = null, td = Infinity;
-    const rt = rescueTarget();
+    const rt = rescueTarget() || flightTarget();
     if (rt) { target = rt; td = rt.pos.distanceTo(p); }
     else for (const r of rings) if (!r.got) { const d = r.pos.distanceTo(p); if (d < td) { td = d; target = r; } }
-    $('arrow').style.borderBottomColor = rt ? (rt.label === 'Drop-off' ? '#5fd4ff' : '#7dff8a') : '';
+    $('arrow').style.borderBottomColor = rt ? (rt.color || (rt.label === 'Drop-off' ? '#5fd4ff' : '#7dff8a')) : '';
     if (target) {
       const ang = Math.atan2(-(target.pos.x - p.x), -(target.pos.z - p.z));
       $('arrow').style.transform = `rotate(${-(ang - camYaw)}rad)`;
@@ -3486,7 +3673,7 @@ function frameBody(now) {
   renderer.render(scene, camera);
 }
 // ---------- minimap: north up, whole city, 1px ≈ 5m ----------
-const MM = $('minimap'), mctx = MM.getContext('2d'), MS = MM.width, MSPAN = 3100, mscale = MS / MSPAN;
+const MM = $('minimap'), mctx = MM.getContext('2d'), MS = MM.width, MSPAN = 3700, mscale = MS / MSPAN;
 const mmX = x => (x + MSPAN / 2) * mscale;
 let mmFrame = 0;
 const mmBg = (() => {
@@ -3499,7 +3686,7 @@ const mmBg = (() => {
   g.fillStyle = '#2f5a70'; g.fillRect(0, mmX(RIVER_Z0), MS, (RIVER_Z1 - RIVER_Z0) * mscale);
   g.fillStyle = '#26242c';
   for (let k = -half; k <= half; k++) g.fillRect(mmX(k * PERIOD - 7), mmX(RIVER_Z0), 14 * mscale, (RIVER_Z1 - RIVER_Z0) * mscale);
-  const kindCol = { rail: '#9a958f', stadium: '#4f6b3a', gas: '#c8372d', garage: '#8d8982', church: '#e6d8c2', skate: '#c4bfb6', park: '#4f6b3a', yard: '#8a5a3c', tank: '#a7ada0', stack: '#8c4a3a', crane: '#e3b22a', bridge: '#d8574a', spire: '#ffffff', plaza: '#6f6866', runway: '#4a4950', hangar: '#9fa6b2', tower: '#d6dade' };
+  const kindCol = { rail: '#9a958f', stadium: '#4f6b3a', gas: '#c8372d', garage: '#8d8982', church: '#e6d8c2', skate: '#c4bfb6', park: '#4f6b3a', yard: '#8a5a3c', tank: '#a7ada0', stack: '#8c4a3a', crane: '#e3b22a', bridge: '#d8574a', spire: '#ffffff', plaza: '#6f6866', runway: '#4a4950', hangar: '#9fa6b2', tower: '#d6dade', hotel: '#e8c8a0', market: '#c9a54a', restaurant: '#d06a2a' };
   for (const [x0, z0, x1, z1, h, kind] of footprints) {
     const v = Math.round(80 + Math.min(h, 200) * 0.75);
     g.fillStyle = kindCol[kind] || `rgb(${v},${v - 6},${v - 2})`;
@@ -3512,9 +3699,9 @@ function drawMinimap() {
   mctx.fillStyle = '#ff6a1f';
   for (const r of rings) if (!r.got) { mctx.beginPath(); mctx.arc(mmX(r.pos.x), mmX(r.pos.z), 5, 0, Math.PI * 2); mctx.fill(); }
   drawDisasterMap(mctx);
-  if (P.mode !== 'plane') { // the parked plane, as a little blue cross
+  if (P.mode !== 'plane') { // the jet, as a little blue cross
     mctx.save(); mctx.translate(mmX(plane.pos.x), mmX(plane.pos.z)); mctx.rotate(-plane.yaw);
-    mctx.fillStyle = '#7fd0ff'; mctx.fillRect(-7, -2, 14, 4); mctx.fillRect(-2, -7, 4, 13);
+    mctx.fillStyle = '#7fd0ff'; mctx.fillRect(-9, -2, 18, 4); mctx.fillRect(-2, -9, 4, 17);
     mctx.restore();
   }
   mctx.save();
