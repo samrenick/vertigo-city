@@ -47,8 +47,11 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .gauge.speed.hot .num { color: var(--signal); }
 
 .flash { position: fixed; inset: 0; background: var(--danger); opacity: 0; pointer-events: none; transition: opacity .5s; }
-.msg { position: fixed; left: 0; right: 0; top: 38%; text-align: center; font-weight: 800; font-size: clamp(44px, 12vw, 110px); letter-spacing: .04em; pointer-events: none; opacity: 0; transition: opacity .25s; text-shadow: 0 4px 30px rgba(0,0,0,.6); }
-.msg small { display: block; font-family: var(--mono); font-weight: 400; font-size: 16px; letter-spacing: .05em; color: var(--ink-dim); }
+.fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+/* pop-up messages: small, up top under the disaster banner, out of the way of the action */
+.msg { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 60px); width: min(460px, calc(100% - 340px)); text-align: center; font-weight: 800; font-size: clamp(20px, 2.6vw, 28px); line-height: 1.1; letter-spacing: .04em; pointer-events: none; opacity: 0; transition: opacity .25s; text-shadow: 0 2px 12px rgba(0,0,0,.7); }
+.msg small { display: block; margin-top: 2px; font-family: var(--mono); font-weight: 400; font-size: 13px; line-height: 1.4; letter-spacing: .03em; color: var(--ink-dim); }
+@media (max-width: 700px) { .msg { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 220px); width: calc(100% - 32px); } }
 
 .intro { position: fixed; inset: 0; overflow-y: auto; display: grid; place-items: center; padding: 16px; background: linear-gradient(180deg, rgba(23,20,43,.35), rgba(23,20,43,.85)); }
 .card { width: min(560px, 100%); display: flex; flex-direction: column; gap: 18px; }
@@ -85,7 +88,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #bBike { right: 96px; bottom: calc(env(safe-area-inset-bottom, 0px) + 350px); width: 60px; height: 60px; font-size: 12px; border-color: var(--signal); color: var(--signal); }
 #bSos { left: 24px; top: calc(env(safe-area-inset-top, 0px) + 260px); width: 56px; height: 56px; font-size: 12px; border-color: #7dff8a; color: #7dff8a; }
 #bForm { right: 24px; bottom: calc(env(safe-area-inset-bottom, 0px) + 350px); width: 60px; height: 60px; font-size: 12px; border-color: var(--signal); color: var(--signal); }
-#bSkate { right: 24px; bottom: calc(env(safe-area-inset-bottom, 0px) + 280px); width: 60px; height: 60px; font-size: 12px; }
+#bHover { right: 24px; bottom: calc(env(safe-area-inset-bottom, 0px) + 280px); width: 60px; height: 60px; font-size: 12px; border-color: #7fd0ff; color: #7fd0ff; }
 #bZip { right: 200px; bottom: calc(env(safe-area-inset-bottom, 0px) + 110px); width: 60px; height: 60px; font-size: 13px; border-color: #7fd0ff; color: #7fd0ff; }
 .reticle { position: fixed; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 2px solid rgba(243,236,226,.45); pointer-events: none; }
 .reticle.ok { border-color: #7fd0ff; }
@@ -122,6 +125,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 </div>
 
 <div class="flash" id="flash"></div>
+<div class="fade" id="fade"></div>
 <div class="msg" id="msg"></div>
 
 <div class="touch" id="touch" hidden>
@@ -132,7 +136,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   <button class="tbtn" id="bGrab" type="button">WEB</button>
   <button class="tbtn" id="bZip" type="button">ZIP</button>
   <button class="tbtn" id="bTrick" type="button">TRICK</button>
-  <button class="tbtn" id="bSkate" type="button">SKATE</button>
+  <button class="tbtn" id="bHover" type="button">HOVER</button>
   <button class="tbtn" id="bForm" type="button">SQRL</button>
   <button class="tbtn" id="bSos" type="button">SOS</button>
   <button class="tbtn" id="bBike" type="button">BIKE</button>
@@ -162,14 +166,22 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
       <kbd>Space · E</kbd><span>On a wall: leap off, or launch straight into a glide. Squirrels survive any fall</span>
       <kbd>M</kbd><span>As a squirrel: hop on your motorcycle. Shift boosts and pops a wheelie</span>
       <kbd>Climb under things</kbd><span>Keep going at an overhang and he runs along the underside upside down: skybridges, construction floors, the train viaduct, bus shelters. Climb trees and sit in the treetops</span>
-      <div class="sec">Roller skates</div>
-      <kbd>G</kbd><span>Put your skates on or take them off</span>
-      <kbd>W · S</kbd><span>Push to speed up, pull back to brake. You carve and coast instead of stopping dead</span>
+      <div class="sec">Hoverboard</div>
+      <kbd>G</kbd><span>Hop on your hoverboard or step off it. It floats just above the ground</span>
+      <kbd>W · S</kbd><span>Push to speed up, pull back to brake. You carve and drift a long way instead of stopping dead</span>
       <kbd>C</kbd><span>In the air: trick. Hold W for a frontflip, S for a backflip, A or D for a cork, nothing for a 360. Press again near the end to chain</span>
-      <kbd>Land on rails</kbd><span>Grind rails, ledges and rooftop edges by landing on them while rolling along them. C on a rail switches grinds, Space hops off</span>
+      <kbd>Land on rails</kbd><span>Grind rails, ledges and rooftop edges by landing on them while riding along them. C on a rail switches grinds, Space hops off</span>
       <kbd>Combos</kbd><span>Tricks and grinds stack until you touch the ground. Land clean to bank the points; land mid-flip and you bail. The skatepark is one block from the start tower, and there's a kicker on its roof</span>
       <div class="sec">Surfing</div>
       <kbd>Land in the river</kbd><span>Fall, glide or jump into the Kessel River and you're up on a surfboard. Stick to carve, push forward to pump, ride down the waves for speed, A to launch off the lip (tricks work), ride into the bank to climb out. In a flood you can surf right over the streets</span>
+      <div class="sec">Buildings</div>
+      <kbd>Walk in</kbd><span>The bigger buildings have doors on every side. Step on the blue pad in a lobby corner to ride the elevator to the roof; the pad in the little hut up top brings you back down</span>
+      <div class="sec">Airport</div>
+      <kbd>Kessel Field</kbd><span>Past the east edge of town (the blue plane on the minimap). Walk up to the plane and press E to get in</span>
+      <kbd>Shift · W</kbd><span>Throttle. On the runway, hold S past 110 km/h to lift off</span>
+      <kbd>W S · A D · Mouse</kbd><span>In the air: pitch, bank and steer, like gliding. Shift for full power</span>
+      <kbd>Land</kbd><span>Come in level and gently on any flat ground or a big roof, then S to brake. Hit anything and it's a wipeout</span>
+      <kbd>E</kbd><span>Get out once you've stopped. In the air that means bailing out, so glide down</span>
       <div class="sec">Disasters and rescues</div>
       <kbd>Every few minutes</kbd><span>A fire, flood or tornado strikes. Follow the green arrow to people and animals in trouble, touch them to pick them up, and carry them to the blue drop-off. Squirrels can carry animals but not people</span>
       <kbd>N</kbd><span>Call in the next disaster now</span>
@@ -184,15 +196,14 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
         <kbd>D-pad up</kbd><span>Call in the next disaster</span>
         <kbd>Right stick</kbd><span>Look and steer</span>
         <kbd>A</kbd><span>Jump. In mid-air: glide</span>
-        <kbd>B</kbd><span>Start or stop gliding</span>
+        <kbd>B</kbd><span>Start or stop gliding. Next to the plane: get in or out (LB is the throttle)</span>
         <kbd>Hold RT · RB</kbd><span>Web swing</span>
         <kbd>LT</kbd><span>Zip</span>
-        <kbd>X</kbd><span>Skate trick (with stick direction)</span>
-        <kbd>Select</kbd><span>Skates on / off</span>
+        <kbd>X</kbd><span>Board trick (with stick direction)</span>
+        <kbd>Select</kbd><span>Hoverboard on / off</span>
         <kbd>R3 (click right stick)</kbd><span>Squirrel form on / off</span>
         <kbd>L3 as a squirrel</kbd><span>Motorcycle on / off (LB boosts and wheelies)</span>
         <kbd>LB</kbd><span>Sprint (hold)</span>
-        <kbd>Y</kbd><span>Back to the last safe roof</span>
         <kbd>Start</kbd><span>Pause</span>
       </div>
     </details>
@@ -369,7 +380,7 @@ function query(x0, z0, x1, z1, out) {
   return out;
 }
 
-// skate ramps (kickers): a wedge rising by h along the unit axis (dx, dz)
+// ramps (kickers): a wedge rising by h along the unit axis (dx, dz)
 const ramps = [];
 function rampHeight(r, x, z) {
   const t = r.dx > 0 ? (x - r.x0) / (r.x1 - r.x0) : r.dx < 0 ? (r.x1 - x) / (r.x1 - r.x0) : r.dz > 0 ? (z - r.z0) / (r.z1 - r.z0) : (r.z1 - z) / (r.z1 - r.z0);
@@ -435,6 +446,7 @@ function roofProps(x0, z0, x1, z1, h, n) {
     if (x1 - x0 < 9 || z1 - z0 < 9) return;
     const pw = 2 + rand() * 2.5, pd = 2 + rand() * 2.5, ph = 1 + rand() * 1.4;
     const px = x0 + 2 + rand() * (x1 - x0 - 4 - pw), pz = z0 + 2 + rand() * (z1 - z0 - 4 - pd);
+    if (lastHut && px < lastHut[2] + 0.5 && px + pw > lastHut[0] - 0.5 && pz < lastHut[3] + 2 && pz + pd > lastHut[1] - 0.5) continue; // keep the elevator hut and its door clear
     addBox(px, h, pz, px + pw, h + ph, pz + pd, PAL.prop, PAL.prop, 'plain', true, false);
   }
 }
@@ -442,9 +454,40 @@ function waterTower(x, z, y) {
   waterTowers.push({ x, z, y });
   addCollider({ x0: x - 1.8, y0: y + 3.2, z0: z - 1.8, x1: x + 1.8, y1: y + 6.8, z1: z + 1.8 });
 }
+// Enterable buildings: a hollow ground-floor lobby with a door in every wall, and an elevator from a pad
+// in the lobby's corner to a little hut on the roof (and back down).
+const LOBBY_H = 4.5, elevators = [], lobbies = [], padSpots = [], lightSpots = [];
+let lastHut = null;
+function lobbyBuilding(x0, z0, x1, z1, h, col, rc, style) {
+  const T = 0.4, D = 1.6, DH = 3.2, LH = LOBBY_H; // wall thickness, half door width, door height
+  addBox(x0, LH, z0, x1, h, z1, col, rc, style); // everything above the lobby
+  const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+  const wall = (a0, b0, a1, b1, y0, y1) => { addBox(a0, y0, b0, a1, y1, b1, col, rc, style); boxes[boxes.length - 1].noTop = true; };
+  for (const [za, zb] of [[z0, z0 + T], [z1 - T, z1]]) { wall(x0, za, mx - D, zb, 0, LH); wall(mx + D, za, x1, zb, 0, LH); wall(mx - D, za, mx + D, zb, DH, LH); }
+  for (const [xa, xb] of [[x0, x0 + T], [x1 - T, x1]]) { wall(xa, z0 + T, xb, mz - D, 0, LH); wall(xa, mz + D, xb, z1 - T, 0, LH); wall(xa, mz - D, xb, mz + D, DH, LH); }
+  const tile = C('#9a9088');
+  addBox(x0 + T, 0, z0 + T, x1 - T, 0.03, z1 - T, tile, tile, 'plain', false, false);                            // floor
+  addBox(mx + 2, 0, mz + 2, mx + 4.4, 1.1, mz + 2.8, C('#6b4a32'), C('#3a2c22'), 'plain', true, false);        // front desk
+  addBox(x1 - T - 1.2, 0, z0 + T + 0.4, x1 - T - 0.4, 0.8, z0 + T + 1.2, C('#7a5b43'), C('#5a4030'), 'plain', true, false); // planter
+  addBox(x1 - T - 1.3, 0.8, z0 + T + 0.3, x1 - T - 0.3, 1.7, z0 + T + 1.3, C('#4f7d3a'), C('#5d8a40'), 'plain', false, false);
+  lightSpots.push([mx, LH - 0.04, mz]);
+  // the rooftop hut: walls, a door facing +z, a roof you can stand on
+  const hx0 = x0 + 0.3, hz0 = z0 + 0.3, hx1 = x0 + 2.9, hz1 = z0 + 2.9, hh = 2.8, t = 0.2, hc = C('#8d8b90');
+  const hb = (a0, b0, a1, b1, y0, y1) => addBox(a0, h + y0, b0, a1, h + y1, b1, hc, PAL.roof[1], 'plain', true, y0 > 0);
+  hb(hx0, hz0, hx0 + t, hz1, 0, hh); hb(hx1 - t, hz0, hx1, hz1, 0, hh); hb(hx0 + t, hz0, hx1 - t, hz0 + t, 0, hh);
+  hb(hx0 + t, hz1 - t, hx0 + 0.65, hz1, 0, hh); hb(hx1 - 0.65, hz1 - t, hx1 - t, hz1, 0, hh); hb(hx0 + 0.65, hz1 - t, hx1 - 0.65, hz1, 2.2, hh);
+  hb(hx0, hz0, hx1, hz1, hh, hh + 0.2);
+  lastHut = [hx0, hz0, hx1, hz1];
+  const lo = { x0: x0 + T + 0.1, z0: z0 + T + 0.1, x1: x0 + T + 2.3, z1: z0 + T + 2.3, y: 0 };
+  const hi = { x0: hx0 + 0.3, z0: hz0 + 0.3, x1: hx1 - 0.3, z1: hz1 - 0.5, y: h };
+  elevators.push({ lo, hi }); lobbies.push([x0, z0, x1, z1]);
+  for (const e of [lo, hi]) padSpots.push([(e.x0 + e.x1) / 2, e.y, (e.z0 + e.z1) / 2]);
+}
 function building(x0, z0, x1, z1, h, style, kind) {
   const col = pick(PAL[style] || PAL.office), rc = pick(PAL.roof);
-  addBox(x0, 0, z0, x1, h, z1, col, rc, style);
+  lastHut = null;
+  if (style !== 'metal' && h >= 12 && x1 - x0 >= 10 && z1 - z0 >= 10) lobbyBuilding(x0, z0, x1, z1, h, col, rc, style);
+  else addBox(x0, 0, z0, x1, h, z1, col, rc, style);
   footprints.push([x0, z0, x1, z1, h, kind || style]);
   return { col, rc };
 }
@@ -625,7 +668,7 @@ function gasStation(ox, oz) { // canopy on posts over the pumps, a little shop a
   addBox(ox + 0.2, 10, oz + 37.5, ox + 2.4, 13, oz + 39.1, red, red, 'plain');
   footprints.push([ox + 4, oz + 6, ox + 30, oz + 24, 6, 'gas']);
 }
-function church(ox, oz) { // stone nave with a pitched roof you can skate down, and a bell tower with a spire
+function church(ox, oz) { // stone nave with a pitched roof you can ride down, and a bell tower with a spire
   const stone = pick(PAL.deco), slate = C('#4a4c55');
   addBox(ox + 12, 0, oz + 4, ox + 26, 11, oz + 32, stone, slate, 'deco');
   addWedge(ox + 12, oz + 4, ox + 19, oz + 32, 11, 5, 1, 0, slate);
@@ -701,10 +744,11 @@ function plaza(ox, oz) {
   footprints.push([ox + 16, oz + 16, ox + 28, oz + 28, 4, 'plaza']);
 }
 
-const DISTRICT_NAMES = { woods: 'Old Pine Woods', downtown: 'Downtown', midtown: 'Midtown', north: 'Northside', industrial: 'Harbor Works', park: 'Greenway Park', river: 'Kessel River' };
+const DISTRICT_NAMES = { woods: 'Old Pine Woods', downtown: 'Downtown', midtown: 'Midtown', north: 'Northside', industrial: 'Harbor Works', park: 'Greenway Park', river: 'Kessel River', airport: 'Kessel Field Airport' };
 function districtAt(bx, bz) {
   if (bx < -half) return 'woods';
   if (bz === 4 || bz === 5) return 'river';
+  if (bx >= half) return 'airport';
   if ((bx >= -7 && bx <= -5 && bz >= -4 && bz <= -2) || (bz === 6 && bx >= -4 && bx <= -1)) return 'park';
   if (bx >= 6) return 'industrial';
   if (Math.hypot(bx * PERIOD + 32, bz * PERIOD + 32) < 300) return 'downtown';
@@ -722,7 +766,7 @@ for (let bx = -half; bx < half; bx++) for (let bz = -half; bz < half; bz++) {
     addBox(ox + 6, 0, oz + 6, ox + 38, 140, oz + 38, PAL.office[2], PAL.roof[0]);
     addBox(ox + 10, 140, oz + 10, ox + 34, spawnTop, oz + 34, PAL.office[2], PAL.roof[0]);
     footprints.push([ox + 6, oz + 6, ox + 38, oz + 38, spawnTop, 'office']);
-    addWedge(ox + 24, oz + 20, ox + 31, oz + 25, spawnTop, 1.6, 1, 0, C('#c4bfb6')); // rooftop kicker: skate off the tower
+    addWedge(ox + 24, oz + 20, ox + 31, oz + 25, spawnTop, 1.6, 1, 0, C('#c4bfb6')); // rooftop kicker: launch off the tower
     continue;
   }
   if (bx === -1 && bz === 1) { skatepark(ox, oz); continue; }
@@ -777,6 +821,30 @@ for (let i = 0; i < 520; i++) {
   tree(x, z, 0.8 + rand() * 0.8, pick(['pine', 'pine', 'oak', 'birch']));
 }
 footprints.push([-1150, -760, -778, 760, 0, 'park']);
+
+// Kessel Field: a little airport past the east edge of town. The plane waits at the west end of the runway, nose down it.
+const AIRPORT = { x: 880, z: -200, yaw: -Math.PI / 2 };
+{
+  parks.push([790, -600, 1580, 240]); footprints.push([790, -600, 1580, 240, 0, 'park']);
+  decals.push([840, -215, 1540, -185, 0.015, '#3f3e45'], [860, -185, 1190, -75, 0.015, '#3f3e45']); // runway and apron
+  footprints.push([840, -215, 1540, -185, 0, 'runway'], [860, -185, 1190, -75, 0, 'runway']);
+  const white = C('#ece8e0'), lamp = C('#ffd28a');
+  for (let x = 870; x < 1500; x += 30) addBox(x, 0, -200.5, x + 15, 0.06, -199.5, white, white, 'plain', false, false); // centre line
+  for (const xs of [842, 1518]) for (let k = 0; k < 8; k++) { const z = -213.5 + k * 3.5 + (k >= 4 ? 1.5 : 0); addBox(xs, 0, z, xs + 20, 0.06, z + 1.6, white, white, 'plain', false, false); }
+  for (let x = 845; x <= 1535; x += 35) for (const z of [-216, -184]) addBox(x - 0.2, 0, z - 0.2, x + 0.2, 0.5, z + 0.2, lamp, lamp, 'plain', false, false); // edge lights
+  building(880, -70, 1000, -40, 14, 'glass', 'terminal');
+  addBox(1020, 0, -66, 1026, 32, -60, PAL.concrete, PAL.concrete, 'plain');                  // control tower
+  addBox(1017, 32, -69, 1029, 37, -57, C('#9fc4d6'), PAL.roof[1], 'glass');
+  addBox(1016.5, 37, -69.5, 1029.5, 37.6, -56.5, PAL.concrete, PAL.roof[0], 'plain');
+  footprints.push([1017, -69, 1029, -57, 37, 'tower']);
+  const mc = pick(PAL.metal), HH = 15;                                                         // hangar, open toward the runway
+  addBox(1060, 0, -100.6, 1120, HH, -100, mc, mc, 'metal');
+  addBox(1060, 0, -140, 1060.6, HH, -100.6, mc, mc, 'metal'); addBox(1119.4, 0, -140, 1120, HH, -100.6, mc, mc, 'metal');
+  addBox(1059.5, HH, -141, 1120.5, HH + 0.8, -99.5, mc, PAL.roof[2], 'metal');
+  footprints.push([1060, -140, 1120, -100, HH, 'hangar']);
+  addBox(1180, 0, -230, 1180.3, 7, -229.7, PAL.rail, PAL.rail, 'plain');                      // windsock
+  addBox(1180.3, 6, -230.4, 1183.5, 6.8, -229.6, C('#ff6a1f'), C('#ff6a1f'), 'plain', false);
+}
 
 // the elevated train: a concrete viaduct over the avenue at z = -128 with grindable rails on top
 {
@@ -901,6 +969,9 @@ footprints.push([-1150, -760, -778, 760, 0, 'park']);
     tint(inst(new THREE.ConeGeometry(r, h, 8), new THREE.MeshLambertMaterial(), pines, (t, d) => { reset(d); d.position.set(t.x, y * t.s, t.z); d.scale.setScalar(t.s); d.rotation.y = t.z; }), pines, ['#2c4a2e', '#24402a', '#335233', '#2a4632']);
   inst(new THREE.CylinderGeometry(0.12, 0.16, 5, 6), new THREE.MeshLambertMaterial({ color: 0xe6e2da }), birches, (t, d) => { reset(d); d.position.set(t.x, 2.5 * t.s, t.z); d.scale.setScalar(t.s); });
   tint(inst(new THREE.IcosahedronGeometry(1.6, 1), new THREE.MeshLambertMaterial(), birches, (t, d) => { reset(d); d.position.set(t.x, 5.6 * t.s, t.z); d.scale.set(t.s, t.s * 1.3, t.s); }), birches, ['#8fae4a', '#a3b85a', '#7f9f45']);
+  // glowing elevator pads and lobby ceiling lights
+  inst(new THREE.BoxGeometry(2, 0.04, 2), new THREE.MeshBasicMaterial({ color: 0x5fd4ff, transparent: true, opacity: 0.6, depthWrite: false }), padSpots, (t, d) => { reset(d); d.position.set(t[0], t[1] + 0.05, t[2]); }, false);
+  inst(new THREE.BoxGeometry(3, 0.06, 1.2), new THREE.MeshBasicMaterial({ color: 0xfff1d0 }), lightSpots, (t, d) => { reset(d); d.position.set(t[0], t[1], t[2]); }, false);
 }
 
 // ---------- rings ----------
@@ -1230,16 +1301,21 @@ for (const l of [legL, legR]) {
   const cuff = part(new THREE.TorusGeometry(0.088, 0.024, 8, 18), leatherDark, 0, -0.21, 0, knee); cuff.rotation.x = Math.PI / 2;
   part(ball(1, 0.078, 0.052, 0.17), leatherDark, 0, -0.44, -0.06, knee);
 }
-// quad roller skates: plate, four orange wheels, toe stop (on the lower leg so they follow the knee)
-const skates = [];
-for (const l of [legL, legR]) {
-  const sk = new THREE.Group(); l.knee.add(sk); sk.visible = false; skates.push(sk);
-  part(box(0.15, 0.035, 0.3), M(0x2b2d33), 0, -0.5, -0.07, sk);
-  for (const zz of [-0.18, 0.04]) for (const xx of [-0.058, 0.058]) {
-    const w = part(new THREE.CylinderGeometry(0.048, 0.048, 0.045, 12), M(0xff6a1f), xx, -0.55, zz, sk); w.rotation.z = Math.PI / 2;
+// hoverboard: a rounded deck, long along x because he rides it side-on, with two glowing thrusters underneath.
+// It sits in the flip pivot so it flips with him; the glow on the ground hangs off the model.
+const hoverboard = new THREE.Group(); hoverboard.visible = false; hoverboard.position.y = 0.11; inner.add(hoverboard);
+{
+  part(ball(1, 0.58, 0.03, 0.2), M(0x2b2d33), 0, 0, 0, hoverboard);                 // deck
+  part(box(0.9, 0.065, 0.06), M(0xff6a1f), 0, 0, 0, hoverboard);                    // stripe
+  for (const x of [-0.32, 0.32]) {
+    part(new THREE.CylinderGeometry(0.1, 0.12, 0.05, 16), M(0x55575c), x, -0.045, 0, hoverboard); // thruster housing
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(0.09, 16), new THREE.MeshBasicMaterial({ color: 0xbfeaff }));
+    pad.rotation.x = Math.PI / 2; pad.position.set(x, -0.071, 0); hoverboard.add(pad);
   }
-  part(new THREE.CylinderGeometry(0.03, 0.035, 0.05, 8), M(0xe9e3d6), 0, -0.515, -0.245, sk);
 }
+const hoverGlowMat = new THREE.MeshBasicMaterial({ color: 0x7fd0ff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+const hoverGlow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 24), hoverGlowMat);
+hoverGlow.rotation.x = -Math.PI / 2; hoverGlow.scale.set(1.7, 0.8, 1); hoverGlow.position.y = 0.03; hoverGlow.visible = false; model.add(hoverGlow);
 
 // headband ties flutter with speed
 let tieT = 0;
@@ -1480,10 +1556,11 @@ const P = {
   safe: new THREE.Vector3(), safeYaw: 0, safeTimer: 0, anim: 0,
   ride: null, anchor: null, knock: false,
   surfAir: false, surfTurn: 0, swingL: 0, swingL0: 0, swingRetry: 0, swingWasHeld: false, webT: 1,
-  skates: store.get('vertigo-skates') === '1', trick: null, trickQueue: null, grind: null, grindCool: 0, stun: 0,
+  hover: store.get('vertigo-hover') === '1', hoverTurn: 0, trick: null, trickQueue: null, grind: null, grindCool: 0, stun: 0,
   onRamp: null, rampVy: 0, landBox: null,
-  form: 'human', climbCool: 0, climbTop: 0, skatesSaved: false, ceilBox: null, ceilHit: null,
-  bike: false, bikeTurn: 0, bikeLean: 0, wheelie: 0, bikeBoost: false
+  form: 'human', climbCool: 0, climbTop: 0, hoverSaved: false, ceilBox: null, ceilHit: null,
+  bike: false, bikeTurn: 0, bikeLean: 0, wheelie: 0, bikeBoost: false,
+  elevT: 0, elevTo: null, elevMoved: false, elevLock: null
 };
 // web strand: a thin tube from the hand to the anchor, plus a splat where it sticks
 const webMat = new THREE.MeshBasicMaterial({ color: 0xe9eef5, fog: false });
@@ -1552,7 +1629,7 @@ const spawnPos = new THREE.Vector3(PERIOD / 2 - 6, spawnTop, PERIOD / 2 + 6);
 function placeAt(v, yaw) {
   P.surfAir = false;
   P.pos.copy(v); P.prevY = v.y; P.vel.set(0, 0, 0); P.mode = 'foot'; P.onGround = true;
-  P.faceYaw = camYaw = yaw; P.wallN = null;
+  P.faceYaw = camYaw = yaw; P.wallN = null; P.elevMoved = false;
 }
 
 // ---------- input ----------
@@ -1567,7 +1644,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyE') suitPressed = true;
   if (e.code === 'KeyQ' && !e.repeat) grapplePressed = true;
   if (e.code === 'KeyC' && !e.repeat) trickPressed = true;
-  if (e.code === 'KeyG' && !e.repeat) toggleSkates();
+  if (e.code === 'KeyG' && !e.repeat) toggleHover();
   if (e.code === 'KeyT' && !e.repeat && !crash) transform();
   if (e.code === 'KeyN' && !e.repeat) callDisaster();
   if (e.code === 'KeyM' && !e.repeat && !crash) toggleBike();
@@ -1634,9 +1711,8 @@ function pollPad(dt) {
     if (down(1)) suitPressed = true;
     if (down(6)) grapplePressed = true;
     if (down(2)) trickPressed = true;
-    if (down(8)) toggleSkates();
+    if (down(8)) toggleHover();
     if (down(11) && !crash) transform();
-    if (down(3) && !crash) toSafe();
     if (down(10)) { if (P.form === 'squirrel') toggleBike(); else pad.sprintToggle = !pad.sprintToggle; }
     const lx = deadzone(gp.axes[0] || 0), ly = deadzone(gp.axes[1] || 0);
     if (down(12)) callDisaster();
@@ -1692,7 +1768,7 @@ if (coarse) {
   for (const ev of ['touchend', 'touchcancel']) $('bGrab').addEventListener(ev, () => { touchSwing = false; });
   $('bZip').addEventListener('touchstart', e => { grapplePressed = true; e.preventDefault(); }, { passive: false });
   $('bTrick').addEventListener('touchstart', e => { trickPressed = true; e.preventDefault(); }, { passive: false });
-  $('bSkate').addEventListener('touchstart', e => { toggleSkates(); e.preventDefault(); }, { passive: false });
+  $('bHover').addEventListener('touchstart', e => { toggleHover(); e.preventDefault(); }, { passive: false });
   $('bForm').addEventListener('touchstart', e => { if (!crash) transform(); e.preventDefault(); }, { passive: false });
   $('bSos').addEventListener('touchstart', e => { callDisaster(); e.preventDefault(); }, { passive: false });
   $('bBike').addEventListener('touchstart', e => { toggleBike(); e.preventDefault(); }, { passive: false });
@@ -1732,7 +1808,7 @@ function startAudio() {
     eng.connect(engF).connect(engG).connect(sfx); eng.start();
     audio = {
       ctx, master, sfx, music, echo, white,
-      wind: loop(brown, 'lowpass', 400), roll: loop(white, 'bandpass', 900, 1.4), grind: loop(white, 'bandpass', 3200, 9),
+      wind: loop(brown, 'lowpass', 400), hover: loop(white, 'bandpass', 400, 1.2), grind: loop(white, 'bandpass', 3200, 9),
       wash: loop(white, 'lowpass', 1200), storm: loop(brown, 'lowpass', 140), eng, engG
     };
     MUS.next = ctx.currentTime + 0.1;
@@ -1839,15 +1915,17 @@ function updateAudio(dt, speed, hs) {
   // wind: only in the air at real speed, and kept low so it never drowns things out
   set(audio.wind.g.gain, live && !P.onGround && speed > 15 ? Math.pow(clamp((speed - 15) / 45, 0, 1), 2) * 0.08 : 0, 0.25);
   set(audio.wind.f.frequency, 200 + speed * 12, 0.25);
-  const rolling = live && P.skates && P.onGround && P.mode === 'foot';
-  set(audio.roll.g.gain, rolling ? Math.min(1, hs / 15) * 0.12 : 0); set(audio.roll.f.frequency, 500 + hs * 45);
+  const hovering = live && P.hover && (P.mode === 'foot' || P.mode === 'grind');
+  set(audio.hover.g.gain, hovering ? 0.04 + Math.min(1, hs / 15) * 0.07 : 0); set(audio.hover.f.frequency, 300 + hs * 35);
   set(audio.grind.g.gain, live && P.mode === 'grind' ? 0.1 : 0, 0.03);
   set(audio.wash.g.gain, live && P.mode === 'surf' ? 0.05 + Math.min(0.12, hs * 0.008) : 0); set(audio.wash.f.frequency, 700 + hs * 70);
   const a = DIS.active, stormD = a && a.type === 'tornado' && funnel ? Math.hypot(p.x - a.pos.x, p.z - a.pos.z) : 1e9;
   set(audio.storm.g.gain, live && stormD < 260 ? clamp(1 - stormD / 260, 0, 1) * 0.6 * a.alive : 0, 0.3);
-  set(audio.engG.gain, live && P.bike ? 0.045 : 0); set(audio.eng.frequency, 55 + hs * 7 + (P.bikeBoost ? 25 : 0), 0.06);
+  const inPlane = P.mode === 'plane';
+  set(audio.engG.gain, live && (P.bike || inPlane) ? (inPlane ? 0.07 : 0.045) : 0);
+  set(audio.eng.frequency, inPlane ? 48 + plane.speed * 0.8 + (plane.boost ? 22 : 0) : 55 + hs * 7 + (P.bikeBoost ? 25 : 0), 0.06);
   // footsteps on the run cycle
-  if (live && P.onGround && P.mode === 'foot' && !P.skates && !P.bike && hs > 1.5) {
+  if (live && P.onGround && P.mode === 'foot' && !P.hover && !P.bike && hs > 1.5) {
     const ph = Math.floor(P.anim / Math.PI);
     if (ph !== stepPhase) { stepPhase = ph; if (P.form === 'human') sfx.step(); else noiseHit(0.03, 'bandpass', 2600, 1800, 0.02, 2); }
   }
@@ -1860,7 +1938,7 @@ function updateAudio(dt, speed, hs) {
   // music energy follows what you're doing; disasters make it tense
   MUS.tense = !!(a && !a.ending);
   let want = 0.15 + Math.min(0.45, speed / 40);
-  if (P.mode === 'swing' || P.mode === 'glide' || P.mode === 'grind' || P.mode === 'surf' || P.bike) want += 0.35;
+  if (P.mode === 'swing' || P.mode === 'glide' || P.mode === 'grind' || P.mode === 'surf' || P.mode === 'plane' || P.bike) want += 0.35;
   if (MUS.tense) want = Math.max(want, 0.65);
   if (!playing) want = 0.12;
   MUS.energy += (clamp(want, 0, 1) - MUS.energy) * Math.min(1, dt * (want > MUS.energy ? 0.8 : 0.25));
@@ -1976,7 +2054,7 @@ function updateAim() {
   if (h.axis === 1 && aimDir.y > 0) return; // underside of something
   const top = h.axis === 1;
   // aiming within 10m of a roofline snaps to the edge so you get pulled up onto the roof
-  const climb = top || h.b.y1 - pt.y <= 10;
+  const climb = !h.b.noTop && (top || h.b.y1 - pt.y <= 10); // lobby walls sit under the building: no roof to pull up onto
   if (climb && !top) pt.y = h.b.y1;
   aim = { pt, b: h.b, nx, ny: top ? 1 : 0, nz, climb, top, rawY: aimO.y + aimDir.y * h.t };
 }
@@ -2031,7 +2109,7 @@ function grappleArrive() {
   }
 }
 
-// ---------- skating: momentum, grinds, tricks and combos ----------
+// ---------- hoverboarding: momentum, grinds, tricks and combos ----------
 const TRICKS = {
   spin: { name: '360 Spin', dur: 0.55, pts: 300, axis: 'y', sign: -1 },
   back: { name: 'Backflip', dur: 0.7, pts: 600, axis: 'x', sign: 1 },
@@ -2039,7 +2117,7 @@ const TRICKS = {
   corkL: { name: 'Cork 360', dur: 0.65, pts: 500, axis: 'z', sign: 1 },
   corkR: { name: 'Cork 360', dur: 0.65, pts: 500, axis: 'z', sign: -1 }
 };
-const GRIND_TRICKS = ['Soul grind', 'Royale', 'Unity', 'Fishbrain', 'Torque soul'];
+const GRIND_TRICKS = ['50-50', '5-0', 'Boardslide', 'Nosegrind', 'Crooked grind'];
 const combo = { parts: [], score: 0 };
 let styleTotal = 0;
 function showCombo() {
@@ -2065,25 +2143,27 @@ function landTrickCheck() { // true if he lands clean
   if (!ok) { sfx.bail(); dropCombo(); P.vel.multiplyScalar(0.25); P.stun = 0.6; message('Bail!<small>Finish the trick before you land</small>', 1); rumble(0.8, 0.6, 250); }
   return ok;
 }
-function toggleSkates() {
-  if (P.form === 'squirrel') { message('No skates<small>Squirrels have paws. Press T to change back</small>', 1); return; }
-  P.skates = !P.skates; store.set('vertigo-skates', P.skates ? '1' : '0'); sfx.click();
-  message(P.skates ? 'Skates on<small>C for tricks · land on rails and edges to grind</small>' : 'Skates off', 1.2);
-  if (!P.skates) { P.trick = null; if (P.mode === 'grind') P.mode = 'foot'; }
+function toggleHover() {
+  if (P.form === 'squirrel') { message('No hoverboard<small>Too big for a squirrel. Press T to change back</small>', 1); return; }
+  P.hover = !P.hover; store.set('vertigo-hover', P.hover ? '1' : '0'); sfx.click();
+  if (P.hover) tone(180, 0.4, 'sine', 0.06, 520);
+  message(P.hover ? 'Hoverboard<small>C for tricks · land on rails and edges to grind</small>' : 'Hoverboard off', 1.2);
+  if (!P.hover) { P.trick = null; if (P.mode === 'grind') P.mode = 'foot'; }
 }
 let squirrelTipShown = false;
 function transform() {
   const p = P.pos;
+  if (P.mode === 'plane' || P.mode === 'elevator') return;
   if (P.form === 'human') {
     P.form = 'squirrel'; R = 0.2; H = 0.45;
-    P.skatesSaved = P.skates; P.skates = false; P.trick = null;
+    P.hoverSaved = P.hover; P.hover = false; P.trick = null;
     if (['grind', 'swing', 'grapple', 'mantle', 'wallrun'].includes(P.mode)) P.mode = 'foot';
     if (!squirrelTipShown) { squirrelTipShown = true; message('Squirrel!<small>Run into any wall to climb it · you survive any fall</small>', 1.8); }
   } else {
     if (solidAt(p.x, p.y + 1.0, p.z) || solidAt(p.x, p.y + 1.7, p.z)) { message('No room<small>Find open space to stand up</small>', 1); return; }
     if (P.mode === 'climb') { P.mode = 'foot'; p.x += P.wallN.x * 0.25; p.z += P.wallN.z * 0.25; }
     if (P.mode === 'ceiling') { P.mode = 'foot'; p.y -= 1.4; }
-    P.form = 'human'; R = 0.35; H = 1.75; P.skates = P.skatesSaved; P.bike = false;
+    P.form = 'human'; R = 0.35; H = 1.75; P.hover = P.hoverSaved; P.bike = false;
   }
   puff(p); rumble(0.3, 0.3, 120); sfx.poof();
 }
@@ -2117,19 +2197,20 @@ function bikeGround(dt, wx, wz, wl, boost) { // throttle toward the stick, carve
   sp = Math.max(0, sp - (0.8 + sp * 0.015) * dt);
   v.x = -Math.sin(hd) * sp; v.z = -Math.cos(hd) * sp;
 }
-function skateGround(dt, wx, wz, wl, sprint) {
+function hoverGround(dt, wx, wz, wl, sprint) {
   const v = P.vel; let sp = Math.hypot(v.x, v.z);
   let hd = sp > 0.5 ? Math.atan2(-v.x, -v.z) : P.faceYaw;
-  const top = sprint ? 20 : 14;
+  const top = sprint ? 22 : 15;
+  P.hoverTurn = 0;
   if (wl > 0.1) {
     const want = Math.atan2(-wx, -wz), d = Math.atan2(Math.sin(want - hd), Math.cos(want - hd));
-    if (sp < 1.5) { hd = want; sp += 8 * dt * wl; }
+    if (sp < 1.5) { hd = want; sp += 9 * dt * wl; }
     else if (Math.abs(d) < 2.3) { // carve toward the stick and push
-      hd += clamp(d, -3 * dt, 3 * dt);
-      if (sp < top) sp = Math.min(top, sp + (sprint ? 9 : 6) * dt * Math.max(0, Math.cos(d)) * wl);
+      const turn = clamp(d, -3 * dt, 3 * dt); hd += turn; P.hoverTurn = turn / dt;
+      if (sp < top) sp = Math.min(top, sp + (sprint ? 10 : 7) * dt * Math.max(0, Math.cos(d)) * wl);
     } else sp = Math.max(0, sp - 16 * dt); // pull back to brake
   }
-  sp = Math.max(0, sp - (0.6 + sp * 0.02) * dt); // rolling resistance: he coasts a long way
+  sp = Math.max(0, sp - (0.35 + sp * 0.015) * dt); // almost no drag: he drifts a long way
   v.x = -Math.sin(hd) * sp; v.z = -Math.cos(hd) * sp;
 }
 function tryGrind(b) {
@@ -2169,6 +2250,32 @@ function checkRings() {
   }
 }
 
+// elevators: stand on a pad, the screen fades, and you come out on the other pad
+let lobbyTipShown = false;
+function checkElevator() {
+  const p = P.pos, inside = (r, m) => p.x > r.x0 + m && p.x < r.x1 - m && p.z > r.z0 + m && p.z < r.z1 - m && Math.abs(p.y - r.y) < 0.3;
+  if (P.elevLock) { if (inside(P.elevLock, 0)) return; P.elevLock = null; } // step off the pad you arrived on first
+  for (const e of elevators) for (const [from, to] of [[e.lo, e.hi], [e.hi, e.lo]]) {
+    if (Math.abs(p.y - from.y) > 0.3 || !inside(from, 0.15)) continue;
+    P.mode = 'elevator'; P.elevT = 0; P.elevTo = to; P.elevMoved = false; P.vel.set(0, 0, 0); P.trick = null;
+    tone(1047, 0.25, 'sine', 0.07); tone(784, 0.4, 'sine', 0.07, null, 0.18);
+    return;
+  }
+  if (!lobbyTipShown && p.y < 1) for (const l of lobbies) if (p.x > l[0] && p.x < l[2] && p.z > l[1] && p.z < l[3]) {
+    lobbyTipShown = true; message('Lobby<small>Step on the blue pad in the corner to take the elevator to the roof</small>', 2); break;
+  }
+}
+function elevatorStep(dt) {
+  P.elevT += dt; jumpPressed = suitPressed = trickPressed = grapplePressed = false;
+  if (!P.elevMoved && P.elevT >= 0.4) { // the screen is black: move him
+    const to = P.elevTo; P.elevMoved = true;
+    P.pos.set((to.x0 + to.x1) / 2, to.y, (to.z0 + to.z1) / 2); P.prevY = to.y; P.vel.set(0, 0, 0);
+    P.faceYaw = camYaw = to.y > 0.5 ? Math.PI : -Math.PI * 0.75; // out the hut door, or into the lobby
+    P.elevLock = to; camTarget.set(P.pos.x, P.pos.y + 1.45, P.pos.z); camDist = 2;
+  }
+  if (P.elevT >= 0.85) { P.mode = 'foot'; P.onGround = true; P.elevMoved = false; }
+}
+
 function step(dt) {
   const v = P.vel, p = P.pos;
   P.prevY = p.y;
@@ -2183,6 +2290,8 @@ function step(dt) {
     jumpPressed = suitPressed = false;
     return;
   }
+
+  if (P.mode === 'elevator') { elevatorStep(dt); return; }
 
   if (P.mode === 'grind') {
     const g = P.grind;
@@ -2202,6 +2311,7 @@ function step(dt) {
   const mx = clamp((keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + stick.x, -1, 1);
   const mz = clamp((keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) + stick.y, -1, 1);
 
+  if (P.mode === 'plane') { planeStep(dt, mx, mz); checkRings(); return; }
   if (P.mode === 'surf') surfStep(dt, mx, mz);
 
   if (P.mode === 'climb') { // up/down is the stick's forward/back; sideways follows the camera
@@ -2239,7 +2349,7 @@ function step(dt) {
 
   if (trickPressed) {
     trickPressed = false;
-    if ((P.skates || P.surfAir) && !P.onGround && P.mode === 'foot') {
+    if ((P.hover || P.surfAir) && !P.onGround && P.mode === 'foot') {
       const kind = mz > 0.5 ? 'front' : mz < -0.5 ? 'back' : Math.abs(mx) > 0.5 ? (mx > 0 ? 'corkR' : 'corkL') : 'spin';
       if (!P.trick) startTrick(kind); else if (P.trick.t > P.trick.dur * 0.6) P.trickQueue = kind;
     }
@@ -2329,7 +2439,7 @@ function step(dt) {
     } else {
       P.bikeBoost = P.bike && !!(keys.ShiftLeft || keys.ShiftRight || touchSprint || pad.sprint); // only the button boosts, not a full stick
       if (P.onGround && P.bike) bikeGround(dt, wx, wz, wl, P.bikeBoost);
-      else if (P.onGround && P.skates && !P.swimming) skateGround(dt, wx, wz, wl, sprint);
+      else if (P.onGround && P.hover && !P.swimming) hoverGround(dt, wx, wz, wl, sprint);
       else if (P.onGround) {
         const k = Math.min(1, dt * 14);
         v.x += (wx * maxS - v.x) * k; v.z += (wz * maxS - v.z) * k;
@@ -2338,7 +2448,7 @@ function step(dt) {
         const nx = v.x + wx * add, nz = v.z + wz * add, ns = Math.hypot(nx, nz);
         if (ns <= Math.max(hs, maxS)) { v.x = nx; v.z = nz; }
       }
-      const hsNow = Math.hypot(v.x, v.z), rolling = (P.skates || P.bike) && hsNow > 1.5;
+      const hsNow = Math.hypot(v.x, v.z), rolling = (P.hover || P.bike) && hsNow > 1.5;
       if (rolling || wl > 0.1) {
         const target = rolling ? Math.atan2(-v.x, -v.z) : Math.atan2(-wx, -wz);
         let d = target - P.faceYaw; d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -2346,11 +2456,11 @@ function step(dt) {
       }
       v.y = Math.max(v.y - GRAV * dt, P.form === 'squirrel' ? -24 : -55); // fluffy squirrels fall slower
       if (jumpPressed) {
-        if (P.onGround || P.coyote > 0) { sfx.jump(); v.y = P.bike ? 7 : P.form === 'squirrel' ? 8.5 : 9.5 + (P.skates ? Math.min(3, hsNow * 0.15) : 0); P.onGround = false; P.coyote = 0; }
+        if (P.onGround || P.coyote > 0) { sfx.jump(); v.y = P.bike ? 7 : P.form === 'squirrel' ? 8.5 : 9.5 + (P.hover ? Math.min(3, hsNow * 0.15) : 0); P.onGround = false; P.coyote = 0; }
         else if (!P.bike) deploy();
         jumpPressed = false;
       }
-      if (suitPressed) { if (!P.onGround && !P.bike) deploy(); suitPressed = false; }
+      if (suitPressed) { if (!P.onGround && !P.bike) deploy(); else if (P.onGround && nearPlane()) enterPlane(); suitPressed = false; }
     }
     P.wish = [wx, wz];
   }
@@ -2429,7 +2539,7 @@ function step(dt) {
   if (P.onGround && !wasGround && P.mode === 'foot') {
     P.surfAir = false;
     const clean = landTrickCheck();
-    const grinding = clean && P.skates && P.landBox && P.grindCool <= 0 && tryGrind(P.landBox);
+    const grinding = clean && P.hover && P.landBox && P.grindCool <= 0 && tryGrind(P.landBox);
     if (clean && !grinding) bankCombo();
   }
   if (P.mode === 'grind') { checkRings(); return; }
@@ -2452,7 +2562,7 @@ function step(dt) {
       else P.mode = 'foot';
     } else if (P.mode === 'foot' && P.form === 'squirrel' && P.bike) {
       if (P.onGround && dh > 0 && dh <= 0.45) p.y = hit.top; // ride up curbs and steps
-      else if (hit.impact > 10) { v.x += hit.nx * hit.impact * 0.5; v.z += hit.nz * hit.impact * 0.5; v.y = Math.max(v.y, 3); message('Bonk!', 0.6); rumble(0.8, 0.4, 160); sfx.bonk(); }
+      else if (hit.impact > 10) { v.x += hit.nx * hit.impact * 0.5; v.z += hit.nz * hit.impact * 0.5; v.y = Math.max(v.y, 3); rumble(0.8, 0.4, 160); sfx.bonk(); }
     } else if (P.mode === 'foot' && P.form === 'squirrel') {
       const w = P.wish || [0, 0], into = -(w[0] * hit.nx + w[1] * hit.nz);
       if (dh > 0.3 && P.climbCool <= 0 && (into > 0.2 || (!P.onGround && hit.impact > 1))) startClimb(hit);
@@ -2485,6 +2595,8 @@ function step(dt) {
     P.safeTimer -= dt;
     if (P.safeTimer <= 0) { P.safe.copy(p); P.safeYaw = camYaw; P.safeTimer = 0.5; }
   }
+  if (P.mode === 'foot' && P.onGround) checkElevator();
+  planeHint();
 
   checkRings();
 }
@@ -2811,7 +2923,7 @@ function updateDisaster(dt, now) {
       v.mesh.position.y = v.home.y + (v.kind === 'person' ? 0 : Math.abs(Math.sin(v.t * 6)) * 0.08);
       v.arms.forEach((ar, i) => ar.rotation.set(0, 0, (i ? 1 : -1) * (2.6 + Math.sin(v.t * 9 + i) * 0.4)));
     }
-    if (!DIS.carry && playing && !crash) {
+    if (!DIS.carry && playing && !crash && P.mode !== 'plane') {
       const reach = v.state === 'swept' ? 3.5 : 2.0;
       tmp.copy(v.mesh.position); tmp.y += 0.5;
       if (tmp.distanceTo(new THREE.Vector3(p.x, p.y + 0.6, p.z)) < reach) {
@@ -2951,6 +3063,160 @@ function updateRiver(dt) {
   pos.needsUpdate = true;
 }
 
+// ---------- airplane ----------
+// A little high-wing prop plane. Origin is under the wheels; it faces -z like everything else.
+const planeMesh = new THREE.Group(); planeMesh.rotation.order = 'YXZ'; scene.add(planeMesh);
+const propeller = new THREE.Group(); propeller.position.set(0, 1.7, -4.8); planeMesh.add(propeller);
+{
+  const add = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; (parent || planeMesh).add(m); return m; };
+  const white = M(0xf3ece2), orange = M(0xff6a1f), dark = M(0x2b2d33), glass = M(0x2a3a4a), rubber = M(0x18181c);
+  const body = new THREE.CylinderGeometry(0.45, 0.85, 7.5, 16); body.rotateX(Math.PI / 2); add(body, white, 0, 1.7, 0.2);
+  const nose = new THREE.ConeGeometry(0.85, 1.2, 16); nose.rotateX(-Math.PI / 2); add(nose, orange, 0, 1.7, -4.15);
+  add(box(0.22, 2.6, 0.06), dark, 0, 0, 0, propeller); add(ball(0.18), orange, 0, 0, 0.05, propeller);
+  add(ball(1, 0.62, 0.5, 1.2), glass, 0, 2.3, -1.6);                 // canopy
+  add(box(1.42, 0.32, 1.3), glass, 0, 2.0, -0.4);                    // side windows
+  add(box(1.4, 0.12, 3), orange, 0, 1.45, 0);                        // stripe
+  add(box(11.2, 0.16, 1.7), white, 0, 2.45, -0.7);                   // wing
+  for (const s of [-1, 1]) {
+    add(box(0.5, 0.18, 1.72), orange, s * 5.35, 2.45, -0.7);         // wingtips
+    add(box(0.07, 2.0, 0.07), dark, s * 1.6, 1.95, -0.7).rotation.z = -s * 1.1; // struts
+    add(box(0.09, 0.93, 0.09), dark, s * 0.75, 0.71, -0.3).rotation.z = s * 0.57; // main gear
+    add(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 14), rubber, s * 1.0, 0.32, -0.3).rotation.z = Math.PI / 2;
+  }
+  add(box(3.8, 0.1, 1.1), white, 0, 1.95, 3.5);                      // tailplane
+  add(box(0.1, 1.5, 1.3), orange, 0, 2.6, 3.55);                     // fin
+  add(box(0.08, 0.9, 0.08), dark, 0, 0.75, -3.2);                    // nose gear
+  add(new THREE.CylinderGeometry(0.26, 0.26, 0.16, 12), rubber, 0, 0.26, -3.2).rotation.z = Math.PI / 2;
+}
+const plane = { pos: new THREE.Vector3(AIRPORT.x, 0, AIRPORT.z), yaw: AIRPORT.yaw, pitch: 0, roll: 0, speed: 0, onGround: true, auto: 0, hinted: false, boost: false, prop: 0 };
+const planeFwd = new THREE.Vector3(), planeProbe = new THREE.Object3D(); planeProbe.rotation.order = 'YXZ';
+const PLANE_PTS = [[0, 1.7, -5], [-5.6, 2.45, -0.7], [5.6, 2.45, -0.7], [0, 2.0, 4], [0, 3.3, 3.6]].map(a => new THREE.Vector3(...a)); // nose, wingtips, tail, fin
+let planeWater = false, planeEdgeMsg = 0;
+function planeFloor(x, y, z) { // the highest thing under the wheels; the river counts as water
+  query(x, z, x, z, near); let g = overWater(x, z) ? RIVER_Y : 0;
+  for (const b of near) if (!b.oneWay && x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && b.y1 <= y && b.y1 > g) g = b.y1;
+  planeWater = g === RIVER_Y && overWater(x, z);
+  return g;
+}
+function planeHit() {
+  planeProbe.position.copy(P.pos); planeProbe.rotation.set(plane.pitch, plane.yaw, -plane.roll); planeProbe.updateMatrixWorld(true);
+  for (const q of PLANE_PTS) {
+    tmp.copy(q).applyMatrix4(planeProbe.matrixWorld);
+    if (solidAt(tmp.x, tmp.y, tmp.z) || (tmp.y < -0.05 && !overWater(tmp.x, tmp.z))) return true;
+  }
+  return false;
+}
+function resetPlane() {
+  plane.pos.set(AIRPORT.x, 0, AIRPORT.z); plane.yaw = AIRPORT.yaw;
+  plane.pitch = plane.roll = plane.speed = plane.auto = 0; plane.onGround = true;
+}
+function nearPlane() {
+  return plane.onGround && plane.auto <= 0 && Math.hypot(P.pos.x - plane.pos.x, P.pos.z - plane.pos.z) < 7 && Math.abs(P.pos.y - plane.pos.y) < 3;
+}
+function planeHint() {
+  if (P.mode === 'foot' && nearPlane()) {
+    if (!plane.hinted) { plane.hinted = true; message(`Airplane<small>${pad.connected ? 'B' : coarse ? 'SUIT' : 'E'} to get in</small>`, 1.6); }
+  } else if (Math.hypot(P.pos.x - plane.pos.x, P.pos.z - plane.pos.z) > 15) plane.hinted = false;
+}
+function enterPlane() {
+  if (P.bike) { message('Airplane<small>Get off the motorcycle first</small>', 1.2); return; }
+  P.mode = 'plane'; P.trick = null; P.pos.copy(plane.pos); P.prevY = plane.pos.y; P.vel.set(0, 0, 0);
+  plane.speed = 0; plane.roll = 0; camYaw = plane.yaw;
+  sfx.click(); tone(65, 0.8, 'sawtooth', 0.06, 130);
+  const thr = pad.connected ? 'LB' : coarse ? 'RUN' : 'Shift', out = pad.connected ? 'B' : coarse ? 'SUIT' : 'E';
+  message(`Cleared for takeoff<small>${thr} for throttle · hold back past 110 km/h to lift off · ${out} to get out</small>`, 2.8);
+}
+function exitPlane() {
+  const p = P.pos, A = plane;
+  if (A.onGround) {
+    if (A.speed > 6) { message('Too fast<small>Brake to a stop first</small>', 1); return; }
+    A.speed = 0;
+    const rx = Math.cos(A.yaw), rz = -Math.sin(A.yaw);
+    let s = 3.5; if (solidAt(p.x + rx * s, p.y + 1, p.z + rz * s)) s = -3.5; // step out on whichever side is clear
+    p.set(p.x + rx * s, 0, p.z + rz * s); p.y = groundBelow(p.x, A.pos.y + 2, p.z);
+    P.vel.set(0, 0, 0); P.mode = 'foot'; P.onGround = true; P.faceYaw = A.yaw; P.prevY = p.y;
+    sfx.click();
+  } else { // bail out: he drops out and the plane flies itself home
+    const f = A.speed * 0.5;
+    P.vel.set(-Math.sin(A.yaw) * f, 2, -Math.cos(A.yaw) * f);
+    p.y -= 2; P.prevY = p.y; P.mode = 'foot'; P.onGround = false; A.auto = 6; sfx.whoosh();
+    message(`Bailed out<small>${pad.connected ? 'A' : 'Space'} to glide · the plane flies itself back to the airport</small>`, 2);
+  }
+  A.hinted = true;
+}
+function abandonPlane() { if (plane.onGround) plane.speed = 0; else plane.auto = 6; }
+function crashPlane(why, water) {
+  const p = P.pos;
+  if (water) { for (let i = 0; i < 80; i++) emit(spray, p.x, p.y + 0.3, p.z, (Math.random() - 0.5) * 12, 3 + Math.random() * 8, (Math.random() - 0.5) * 12, 1.2); sfx.splash(); }
+  else {
+    for (let i = 0; i < 140; i++) emit(flames, p.x + (Math.random() - 0.5) * 5, p.y + 1 + Math.random() * 3, p.z + (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 14, Math.random() * 12, (Math.random() - 0.5) * 14, 0.5 + Math.random() * 0.8);
+    for (let i = 0; i < 40; i++) emit(smoke, p.x, p.y + 2, p.z, (Math.random() - 0.5) * 6, 3 + Math.random() * 4, (Math.random() - 0.5) * 6, 3 + Math.random() * 2);
+    noiseHit(1.4, 'lowpass', 1200, 40, 0.7);
+  }
+  resetPlane(); P.mode = 'wreck'; // a fresh plane is waiting at the airport
+  wipeout(why);
+}
+function planeStep(dt, mx, mz) {
+  const p = P.pos, v = P.vel, A = plane;
+  P.onGround = A.onGround;
+  if (suitPressed) { suitPressed = false; exitPlane(); return; }
+  jumpPressed = trickPressed = grapplePressed = false;
+  const boost = !!(keys.ShiftLeft || keys.ShiftRight || touchSprint || pad.sprint);
+  A.boost = boost;
+  if (A.onGround) { // taxi and take-off roll: throttle with Shift or forward, brake by pulling back
+    A.speed = boost || mz > 0.3 ? Math.min(60, A.speed + 9 * dt) : Math.max(0, A.speed - (mz < -0.3 && A.speed < 30 ? 12 : 3) * dt);
+    A.yaw -= mx * 1.1 * dt * Math.min(1, A.speed / 4);
+    A.pitch -= A.pitch * Math.min(1, dt * 5); A.roll -= A.roll * Math.min(1, dt * 5);
+    planeFwd.set(-Math.sin(A.yaw), 0, -Math.cos(A.yaw));
+    const ox = p.x, oz = p.z;
+    p.addScaledVector(planeFwd, A.speed * dt);
+    const fl = planeFloor(p.x, p.y + 0.5, p.z);
+    if (fl < p.y - 0.6) A.onGround = false; else p.y = fl; // rolled off an edge
+    if (A.speed >= 30 && mz < -0.3) { A.onGround = false; A.pitch = 0.12; sfx.whoosh(); } // rotate and lift off
+    v.copy(planeFwd).multiplyScalar(A.speed);
+    if (planeHit()) {
+      if (A.speed > 12) return crashPlane('Crashed the plane');
+      p.x = ox; p.z = oz; A.speed = 0; v.set(0, 0, 0);
+    }
+  } else { // flying: bank to turn, pitch to climb or dive, throttle sets the cruise speed
+    A.roll += (clamp(mx + P.mouseTurn, -1.2, 1.2) - A.roll) * Math.min(1, dt * 3);
+    A.yaw -= A.roll * 0.8 * dt;
+    if (mz !== 0) A.pitch -= mz * 0.9 * dt; else A.pitch -= A.pitch * 0.5 * dt;
+    A.speed = clamp(A.speed + ((boost ? 75 : 42) - A.speed) * 0.3 * dt - 9.8 * Math.sin(A.pitch) * dt, 0, 100);
+    if (A.speed < 26) A.pitch -= (26 - A.speed) * 0.05 * dt; // stall: the nose drops
+    A.pitch = clamp(A.pitch, -1.2, 0.9);
+    if (Math.abs(p.x) > 1450 || Math.abs(p.z) > 1450) { // past the edge of the map it turns back toward the city
+      let d = Math.atan2(p.x, p.z) - A.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+      A.yaw += clamp(d, -0.9 * dt, 0.9 * dt);
+      if ((planeEdgeMsg -= dt) <= 0) { planeEdgeMsg = 6; message('Edge of the map<small>Turning back toward the city</small>', 1.4); }
+    }
+    if (p.y > 520) A.pitch = Math.min(A.pitch, 0);
+    const cp = Math.cos(A.pitch), sink = Math.max(0, 30 - A.speed) * 0.5;
+    v.set(-Math.sin(A.yaw) * cp * A.speed, Math.sin(A.pitch) * A.speed - sink, -Math.cos(A.yaw) * cp * A.speed);
+    p.addScaledVector(v, dt);
+    if (planeHit()) return crashPlane('Crashed the plane');
+    const fl = planeFloor(p.x, p.y + 1.5, p.z);
+    if (p.y <= fl) {
+      if (planeWater) return crashPlane('Ditched in the river', true);
+      if (v.y < -9 || A.pitch < -0.3 || Math.abs(A.roll) > 0.5) return crashPlane('Hard landing');
+      p.y = fl; v.y = 0; A.onGround = true; A.pitch = 0; A.roll = 0;
+      sfx.land(8); message('Touchdown<small>Pull back to brake</small>', 1.2);
+    }
+  }
+  P.onGround = A.onGround; P.faceYaw = A.yaw;
+  A.pos.copy(p);
+}
+function updatePlane(dt) {
+  const A = plane;
+  if (P.mode !== 'plane' && A.auto > 0) { // nobody aboard: straight and level for a few seconds, then it's back on the runway
+    A.auto -= dt; A.pitch -= A.pitch * Math.min(1, dt * 2); A.roll -= A.roll * Math.min(1, dt * 2);
+    A.pos.x -= Math.sin(A.yaw) * A.speed * dt; A.pos.z -= Math.cos(A.yaw) * A.speed * dt;
+    if (A.auto <= 0) resetPlane();
+  }
+  A.prop += dt * (P.mode === 'plane' ? 25 + A.speed * 0.6 : A.auto > 0 ? 40 : 0);
+  planeMesh.position.copy(A.pos); planeMesh.rotation.set(A.pitch, A.yaw, -A.roll); propeller.rotation.z = A.prop;
+}
+
 // ---------- game flow ----------
 let crash = 0, clock = 0, started = false, finished = false, collected = 0, msgTimer = 0;
 let best = parseFloat(store.get('vertigo-best')) || 0;
@@ -2973,7 +3239,7 @@ function wipeout(why) {
   $('flash').style.opacity = 0.55; message(`Wipeout<small>${why}</small>`, 1.3);
   setTimeout(() => { $('flash').style.opacity = 0; }, 120);
 }
-function toSafe() { placeAt(P.safe, P.safeYaw); camPitch = 0.28; }
+function toSafe() { if (P.mode === 'plane') abandonPlane(); placeAt(P.safe, P.safeYaw); camPitch = 0.28; }
 function resetRun() {
   for (const r of rings) { r.got = false; r.side = 0; r.mesh.material.color.set(0xff6a1f); r.mesh.children[0].visible = true; }
   collected = 0; clock = 0; started = false; finished = false;
@@ -3017,7 +3283,7 @@ function camRay(o, d, maxD) {
 
 // ---------- main loop ----------
 const camDir = new THREE.Vector3();
-let acc = 0, last = performance.now(), shakeT = 0, shoulder = 0.8;
+let acc = 0, last = performance.now(), shakeT = 0, shoulder = 0.8, lastFade = 0;
 const handPos = new THREE.Vector3();
 P.mouseTurn = 0;
 resetRun();
@@ -3038,6 +3304,10 @@ function frameBody(now) {
     if (P.mode === 'glide') {
       P.yaw -= mouseDX * 0.0022; P.pitch = clamp(P.pitch - mouseDY * 0.0018, -1.4, 0.75);
       P.mouseTurn = lerp(P.mouseTurn, clamp(mouseDX * 0.06, -1, 1), Math.min(1, dt * 8));
+    } else if (P.mode === 'plane') {
+      plane.yaw -= mouseDX * 0.0015;
+      if (!plane.onGround) plane.pitch = clamp(plane.pitch - mouseDY * 0.0015, -1.2, 0.9);
+      P.mouseTurn = lerp(P.mouseTurn, clamp(mouseDX * 0.05, -1, 1), Math.min(1, dt * 8));
     } else {
       camYaw -= mouseDX * 0.0025; camPitch = clamp(camPitch + mouseDY * 0.0025, -1.15, 1.25);
       P.mouseTurn = 0;
@@ -3057,17 +3327,21 @@ function frameBody(now) {
   // model pose
   const p = P.pos, speed = P.vel.length(), hs = Math.hypot(P.vel.x, P.vel.z);
   model.position.copy(p);
-  const gliding = P.mode === 'glide', sq = P.form === 'squirrel';
+  const gliding = P.mode === 'glide', sq = P.form === 'squirrel', flying = P.mode === 'plane';
+  const hoverOn = P.hover && !sq && (P.mode === 'foot' || P.mode === 'grind'); // stowed while swinging, gliding or wall-running
   trickPivot.visible = !sq; critter.visible = sq;
+  model.visible = !flying && P.mode !== 'wreck'; // he's inside the plane (or it just blew up)
   bike.visible = sq && P.bike; // the bike hangs off the model itself, so hide it whenever he isn't riding
   board.visible = P.mode === 'surf' || (P.surfAir && P.mode === 'foot' && !P.onGround);
   if (board.visible) { board.scale.setScalar(sq ? 0.35 : 1); board.rotation.set(0, sq ? 0 : -Math.PI / 2, 0); board.position.y = sq ? 0.01 : -0.02; }
   wings.visible = gliding && !sq;
-  skates.forEach(k => { k.visible = P.skates; });
-  inner.position.y = -0.95 + (P.skates ? 0.09 : 0);
+  hoverboard.visible = hoverOn; hoverGlow.visible = hoverOn && P.onGround;
+  hoverGlowMat.opacity = 0.32 + Math.sin(now / 90) * 0.1;
+  inner.position.y = -0.95 + (hoverOn ? 0.2 + Math.sin(now / 260) * 0.025 : 0);
   if (P.trick) { // flips and spins turn him around his middle
     const t = clamp(P.trick.t / P.trick.dur, 0, 1), e = t * t * (3 - 2 * t), a = P.trick.sign * Math.PI * 2 * e;
-    trickPivot.rotation.set(P.trick.axis === 'x' ? a : 0, P.trick.axis === 'y' ? a : 0, P.trick.axis === 'z' ? a : 0);
+    const axis = hoverOn && P.trick.axis !== 'y' ? (P.trick.axis === 'x' ? 'z' : 'x') : P.trick.axis; // he rides side-on, so flips and corks swap axes
+    trickPivot.rotation.set(axis === 'x' ? a : 0, axis === 'y' ? a : 0, axis === 'z' ? a : 0);
   } else trickPivot.rotation.set(0, 0, 0);
   if (sq) poseSquirrel(dt, hs, speed);
   else if (gliding) {
@@ -3079,17 +3353,18 @@ function frameBody(now) {
     inner.rotation.y = 0;
     for (const l of [legL, legR]) l.knee.rotation.set(0, 0, 0);
     for (const a of [armL, armR]) a.elbow.rotation.set(0, 0, 0);
-    let lean = P.onGround ? (P.skates ? -0.28 : -0.14) * Math.min(1, hs / 13) : 0;
+    let lean = P.onGround && !hoverOn ? -0.14 * Math.min(1, hs / 13) : 0;
     let tiltZ = 0;
     if (P.mode === 'wallrun' && P.wallN) {
       const rightX = Math.cos(P.faceYaw), rightZ = -Math.sin(P.faceYaw);
       tiltZ = -(P.wallN.x * rightX + P.wallN.z * rightZ) * 0.35;
     }
-    const sideways = P.mode === 'grind' || P.mode === 'surf' || P.surfAir;
+    const sideways = P.mode === 'grind' || P.mode === 'surf' || P.surfAir || hoverOn;
     if (P.mode === 'surf') lean = clamp(-P.surfTurn * hs * 0.035, -0.5, 0.5); // lean into the carve
+    else if (hoverOn && P.onGround && P.mode === 'foot') lean = clamp(-P.hoverTurn * hs * 0.03, -0.45, 0.45);
     model.rotation.set(lean, P.faceYaw + (sideways ? Math.PI / 2 : 0), tiltZ);
     // (thigh +x swings the foot forward, knee -x folds the shin back, elbow +x bends the forearm forward)
-    if (P.mode === 'surf') { // crouched surf stance: feet wide, knees bent, arms out
+    if (P.mode === 'surf' || hoverOn) { // crouched board stance: feet wide, knees bent, arms out (feet stay on the hoverboard through tricks and grinds)
       legL.rotation.set(0.35, 0, -0.32); legR.rotation.set(0.35, 0, 0.32);
       legL.knee.rotation.x = legR.knee.rotation.x = -0.8;
       armL.rotation.set(-0.3, 0, -1.0 + Math.sin(P.anim += dt * 2) * 0.1); armR.rotation.set(0.3, 0, 1.0);
@@ -3103,14 +3378,6 @@ function frameBody(now) {
       legL.knee.rotation.x = legR.knee.rotation.x = -2.1;
       armL.rotation.set(0.9, 0, -0.25); armR.rotation.set(0.9, 0, 0.25);
       armL.elbow.rotation.x = armR.elbow.rotation.x = 1.1;
-    } else if (P.skates && P.onGround) { // long skating strides, knees bent
-      P.anim += hs * dt * 0.45;
-      const amp = Math.min(1, hs / 6), s = Math.sin(P.anim);
-      legL.rotation.set(0.25 + s * 0.45 * amp, 0, -0.08 - Math.max(0, s) * 0.25 * amp);
-      legR.rotation.set(0.25 - s * 0.45 * amp, 0, 0.08 + Math.max(0, -s) * 0.25 * amp);
-      legL.knee.rotation.x = -0.45 - Math.max(0, -s) * 0.4 * amp; legR.knee.rotation.x = -0.45 - Math.max(0, s) * 0.4 * amp;
-      armL.rotation.set(-s * 0.6 * amp, 0, -0.2); armR.rotation.set(s * 0.6 * amp, 0, 0.2);
-      armL.elbow.rotation.x = armR.elbow.rotation.x = 0.4;
     } else if (P.onGround || P.mode === 'wallrun') { // run cycle: the trailing leg folds at the knee, elbows pump
       P.anim += hs * dt * 1.15;
       const amp = Math.min(1, hs / 7) * 0.9, s = Math.sin(P.anim);
@@ -3137,22 +3404,23 @@ function frameBody(now) {
   poseExtras(dt, speed);
 
   // camera
-  if (gliding) {
-    let d = P.yaw - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d));
-    camYaw += d * Math.min(1, dt * 4);
-    camPitch = lerp(camPitch, 0.22 - P.pitch * 0.55, Math.min(1, dt * 3));
+  if (gliding || flying) {
+    const fy = flying ? plane.yaw : P.yaw, fp = flying ? plane.pitch : P.pitch;
+    let d = fy - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+    camYaw += d * Math.min(1, dt * (flying ? 3 : 4));
+    camPitch = lerp(camPitch, (flying ? 0.28 : 0.22) - fp * 0.55, Math.min(1, dt * 3));
   }
-  const wantDist = sq ? (gliding ? 5.5 : P.bike ? 4.6 : 3.2) : gliding ? 8.5 : 5.5;
-  camTarget.lerp(tmp.set(p.x, p.y + (sq ? 0.45 : 1.45), p.z), 1 - Math.exp(-dt * 18));
+  const wantDist = flying ? 15 : sq ? (gliding ? 5.5 : P.bike ? 4.6 : 3.2) : gliding ? 8.5 : 5.5;
+  camTarget.lerp(tmp.set(p.x, p.y + (flying ? 2.6 : sq ? 0.45 : 1.45), p.z), 1 - Math.exp(-dt * 18));
   camDir.set(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch), Math.cos(camYaw) * Math.cos(camPitch));
   const allowed = camRay(camTarget, camDir, wantDist) - 0.35;
   camDist = Math.min(lerp(camDist, wantDist, Math.min(1, dt * 3)), Math.max(0.6, allowed));
   // over-the-shoulder offset so the reticle sits beside the runner, not on them
-  shoulder = lerp(shoulder, gliding ? 0 : sq ? 0.3 : 0.8, Math.min(1, dt * 4));
+  shoulder = lerp(shoulder, gliding || flying ? 0 : sq ? 0.3 : 0.8, Math.min(1, dt * 4));
   const shX = Math.cos(camYaw) * shoulder, shZ = -Math.sin(camYaw) * shoulder;
   camera.position.copy(camTarget).addScaledVector(camDir, camDist);
   camera.position.x += shX; camera.position.z += shZ;
-  if (!reduceMotion && speed > 30) {
+  if (!reduceMotion && speed > 30 && !flying) {
     shakeT += dt * 40; const k = (speed - 30) * 0.0016;
     camera.position.x += Math.sin(shakeT * 1.3) * k; camera.position.y += Math.sin(shakeT * 1.7) * k;
   }
@@ -3161,7 +3429,7 @@ function frameBody(now) {
 
   // city life, grapple aim and rope
   updateTraffic(dt); updatePeds(dt); updateTrain(dt);
-  if (playing && !crash && !sq) updateAim(); else aim = null;
+  if (playing && !crash && !sq && !flying) updateAim(); else aim = null;
   const ret = $('reticle');
   ret.className = 'reticle' + (aim ? (aim.climb ? ' climb' : ' ok') : '');
   strand.visible = P.mode === 'grapple' || P.mode === 'swing';
@@ -3173,7 +3441,9 @@ function frameBody(now) {
     strand.lookAt(P.anchor.pt);
     strand.scale.set(1, 1, handPos.distanceTo(P.anchor.pt) * P.webT);
   }
-  updateSparks(dt); updatePuff(dt); updateDisaster(dt, now); updateRiver(dt); updateAudio(dt, speed, hs);
+  updateSparks(dt); updatePuff(dt); updateDisaster(dt, now); updateRiver(dt); updateAudio(dt, speed, hs); updatePlane(dt);
+  const fade = P.mode === 'elevator' ? (P.elevT < 0.4 ? P.elevT / 0.4 : Math.max(0, 1 - (P.elevT - 0.4) / 0.45)) : 0;
+  if (fade !== lastFade) { lastFade = fade; $('fade').style.opacity = fade; }
   for (const s of splats) if (s.visible) {
     s.age += dt; s.material.opacity = clamp(1.4 - s.age / 5, 0, 0.9);
     if (s.age > 7) s.visible = false;
@@ -3190,9 +3460,9 @@ function frameBody(now) {
     $('spd').textContent = kmh; $('spdBox').classList.toggle('hot', kmh > 120);
     $('alt').textContent = Math.max(0, Math.round(p.y - groundBelow(p.x, p.y, p.z)));
     const mode = $('mode');
-    const label = { foot: P.onGround ? 'On foot' : 'Airborne', glide: 'Gliding', wallrun: 'Wall-run', mantle: 'Vault', grapple: 'Zipping', swing: 'Swinging', climb: 'Climbing', ceiling: 'Upside down' }[P.mode];
-    const labelTxt = P.mode === 'surf' ? 'Surfing' : P.bike && P.mode === 'foot' ? 'Motorcycle' : sq && P.mode === 'foot' && P.onGround ? 'Squirrel' : P.mode === 'grind' ? 'Grinding' : P.ride && P.mode === 'foot' ? 'Car surfing' : P.skates && P.mode === 'foot' && P.onGround ? 'Skating' : label;
-    if (mode.textContent !== labelTxt) { mode.textContent = labelTxt; mode.className = 'chip' + (P.mode === 'glide' ? ' glide' : P.mode === 'wallrun' || P.mode === 'grapple' || P.mode === 'swing' || P.mode === 'climb' || P.mode === 'ceiling' ? ' wall' : ''); }
+    const label = { foot: P.onGround ? 'On foot' : 'Airborne', glide: 'Gliding', wallrun: 'Wall-run', mantle: 'Vault', grapple: 'Zipping', swing: 'Swinging', climb: 'Climbing', ceiling: 'Upside down', plane: plane.onGround ? 'Taxiing' : 'Flying', elevator: 'Elevator', wreck: 'Crashed' }[P.mode];
+    const labelTxt = P.mode === 'surf' ? 'Surfing' : P.bike && P.mode === 'foot' ? 'Motorcycle' : sq && P.mode === 'foot' && P.onGround ? 'Squirrel' : P.mode === 'grind' ? 'Grinding' : P.ride && P.mode === 'foot' ? 'Car surfing' : P.hover && P.mode === 'foot' && P.onGround ? 'Hoverboard' : label;
+    if (mode.textContent !== labelTxt) { mode.textContent = labelTxt; mode.className = 'chip' + (P.mode === 'glide' || P.mode === 'plane' ? ' glide' : P.mode === 'wallrun' || P.mode === 'grapple' || P.mode === 'swing' || P.mode === 'climb' || P.mode === 'ceiling' ? ' wall' : ''); }
     $('timer').textContent = fmt(clock);
     const dn = DISTRICT_NAMES[districtAt(Math.floor(p.x / PERIOD), Math.floor(p.z / PERIOD))] || 'Outskirts';
     if ($('district').textContent !== dn) $('district').textContent = dn;
@@ -3216,7 +3486,7 @@ function frameBody(now) {
   renderer.render(scene, camera);
 }
 // ---------- minimap: north up, whole city, 1px ≈ 5m ----------
-const MM = $('minimap'), mctx = MM.getContext('2d'), MS = MM.width, MSPAN = 1600, mscale = MS / MSPAN;
+const MM = $('minimap'), mctx = MM.getContext('2d'), MS = MM.width, MSPAN = 3100, mscale = MS / MSPAN;
 const mmX = x => (x + MSPAN / 2) * mscale;
 let mmFrame = 0;
 const mmBg = (() => {
@@ -3229,7 +3499,7 @@ const mmBg = (() => {
   g.fillStyle = '#2f5a70'; g.fillRect(0, mmX(RIVER_Z0), MS, (RIVER_Z1 - RIVER_Z0) * mscale);
   g.fillStyle = '#26242c';
   for (let k = -half; k <= half; k++) g.fillRect(mmX(k * PERIOD - 7), mmX(RIVER_Z0), 14 * mscale, (RIVER_Z1 - RIVER_Z0) * mscale);
-  const kindCol = { rail: '#9a958f', stadium: '#4f6b3a', gas: '#c8372d', garage: '#8d8982', church: '#e6d8c2', skate: '#c4bfb6', park: '#4f6b3a', yard: '#8a5a3c', tank: '#a7ada0', stack: '#8c4a3a', crane: '#e3b22a', bridge: '#d8574a', spire: '#ffffff', plaza: '#6f6866' };
+  const kindCol = { rail: '#9a958f', stadium: '#4f6b3a', gas: '#c8372d', garage: '#8d8982', church: '#e6d8c2', skate: '#c4bfb6', park: '#4f6b3a', yard: '#8a5a3c', tank: '#a7ada0', stack: '#8c4a3a', crane: '#e3b22a', bridge: '#d8574a', spire: '#ffffff', plaza: '#6f6866', runway: '#4a4950', hangar: '#9fa6b2', tower: '#d6dade' };
   for (const [x0, z0, x1, z1, h, kind] of footprints) {
     const v = Math.round(80 + Math.min(h, 200) * 0.75);
     g.fillStyle = kindCol[kind] || `rgb(${v},${v - 6},${v - 2})`;
@@ -3242,8 +3512,13 @@ function drawMinimap() {
   mctx.fillStyle = '#ff6a1f';
   for (const r of rings) if (!r.got) { mctx.beginPath(); mctx.arc(mmX(r.pos.x), mmX(r.pos.z), 5, 0, Math.PI * 2); mctx.fill(); }
   drawDisasterMap(mctx);
+  if (P.mode !== 'plane') { // the parked plane, as a little blue cross
+    mctx.save(); mctx.translate(mmX(plane.pos.x), mmX(plane.pos.z)); mctx.rotate(-plane.yaw);
+    mctx.fillStyle = '#7fd0ff'; mctx.fillRect(-7, -2, 14, 4); mctx.fillRect(-2, -7, 4, 13);
+    mctx.restore();
+  }
   mctx.save();
-  mctx.translate(mmX(P.pos.x), mmX(P.pos.z)); mctx.rotate(-(P.mode === 'glide' ? P.yaw : camYaw));
+  mctx.translate(mmX(P.pos.x), mmX(P.pos.z)); mctx.rotate(-(P.mode === 'glide' ? P.yaw : P.mode === 'plane' ? plane.yaw : camYaw));
   mctx.beginPath(); mctx.moveTo(0, -12); mctx.lineTo(8, 9); mctx.lineTo(0, 4); mctx.lineTo(-8, 9); mctx.closePath();
   mctx.fillStyle = '#f3ece2'; mctx.strokeStyle = '#17142b'; mctx.lineWidth = 3; mctx.stroke(); mctx.fill();
   mctx.restore();
