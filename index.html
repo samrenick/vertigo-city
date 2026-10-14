@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Vertigo City</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
@@ -16,6 +17,7 @@
   color-scheme: dark;
 }
 html, body { height: 100%; }
+[hidden] { display: none !important; } /* .intro, .hud and .story set display, which would otherwise beat the hidden attribute */
 body { margin: 0; background: var(--sky-deep); color: var(--ink); font-family: var(--display); overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: none; }
 canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
@@ -94,6 +96,34 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .reticle.ok { border-color: #7fd0ff; }
 .reticle.climb { border-color: var(--signal); width: 26px; height: 26px; margin: -13px 0 0 -13px; }
 .reticle.climb::after { content: ""; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: var(--signal); }
+.alert.boss { border-color: #f2efe8; }
+/* boss fight: Kingsley's Sonic Bark meter sits under the banner and pushes pop-ups down */
+.bossbar { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 52px); width: min(420px, calc(100% - 340px)); pointer-events: none; }
+.bossbar .lbl { display: flex; justify-content: space-between; color: var(--ink); text-shadow: 0 1px 6px rgba(0,0,0,.7); }
+.bossbar .lbl b { color: #9fe8ff; font-weight: 700; }
+.bossbar .track { height: 12px; margin-top: 3px; background: var(--panel); border: 1.5px solid var(--ink-dim); }
+.bossbar .fill { height: 100%; width: 0; background: #9fe8ff; }
+.bossbar.hot .fill { background: var(--danger); }
+.bossbar.hot .lbl b { color: var(--danger); }
+.bossfight .msg { top: calc(env(safe-area-inset-top, 0px) + 96px); }
+@media (max-width: 700px) {
+  .bossbar { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 212px); width: calc(100% - 32px); }
+  .bossfight .msg { bottom: calc(env(safe-area-inset-bottom, 0px) + 262px); }
+}
+.flash.white { background: #fff6e0; }
+
+/* story panels: one comic panel at a time over the city */
+.story { position: fixed; inset: 0; overflow-y: auto; display: grid; place-items: center; padding: 16px; background: rgba(12,10,22,.82); }
+.panel { width: min(640px, 100%); display: flex; flex-direction: column; gap: 14px; }
+.panel .art { aspect-ratio: 16 / 9; border: 3px solid var(--ink); background: #241f3a; overflow: hidden; }
+.panel .art svg { display: block; width: 100%; height: 100%; }
+.panel .kicker { font-weight: 700; font-size: 13px; letter-spacing: .18em; text-transform: uppercase; color: var(--signal); }
+.panel h2 { margin: -8px 0 0; font-weight: 800; font-size: clamp(34px, 7vw, 52px); line-height: .95; text-transform: uppercase; text-wrap: balance; }
+.panel p { margin: 0; font-family: var(--mono); font-size: 14px; line-height: 1.6; color: var(--ink-dim); max-width: 62ch; }
+.panel .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.panel .dots { flex: 1; font-family: var(--mono); font-size: 13px; color: var(--ink-dim); }
+.storyline { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.sndrow + .sndrow { margin-top: -8px; }
 @media (prefers-reduced-motion: reduce) { .flash, .msg { transition: none; } }
 </style>
 
@@ -116,6 +146,8 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
     <div class="style rescued" id="rescued">0</div>
     <div class="lbl" style="margin-top:10px">Passengers</div>
     <div class="style" id="pax">0</div>
+    <div class="lbl" style="margin-top:10px">Story</div>
+    <div class="style" id="mission">Boss</div>
   </div>
   <div class="bl">
     <div class="gauge speed" id="spdBox"><span class="num" id="spd">0</span><span class="unit">KM/H</span></div>
@@ -124,6 +156,10 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   <div class="reticle" id="reticle"></div>
   <div class="combo" id="combo"></div>
   <div class="alert" id="alert" hidden></div>
+  <div class="bossbar" id="boss" hidden>
+    <div class="lbl"><span>Kingsley · Sonic Bark</span><b id="bossState">Charging</b></div>
+    <div class="track"><div class="fill" id="bossFill"></div></div>
+  </div>
 </div>
 
 <div class="flash" id="flash"></div>
@@ -144,10 +180,25 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   <button class="tbtn" id="bBike" type="button">BIKE</button>
 </div>
 
+<div class="story" id="story" hidden>
+  <div class="panel" role="dialog" aria-labelledby="cutTitle">
+    <div class="art" id="cutArt"></div>
+    <div class="kicker" id="cutKicker"></div>
+    <h2 id="cutTitle"></h2>
+    <p id="cutText"></p>
+    <div class="row">
+      <span class="dots" id="cutDots"></span>
+      <button class="snd" id="cutSkip" type="button">Skip</button>
+      <button class="go" id="cutNext" type="button">Next</button>
+    </div>
+  </div>
+</div>
+
 <div class="intro" id="intro">
   <div class="card">
     <h1>Vertigo<span>City</span></h1>
-    <p id="introText">You start on the roof of the tallest tower downtown. You're a squirrel scout. Run the rooftops, then jump and spread your gliding flaps. Fly through all 20 orange rings as fast as you can. They're spread from the Downtown towers to the Kessel River bridges, the Harbor Works docks and the brick rooftops of Northside.</p>
+    <p id="introText">A radioactive spider bit a squirrel. The squirrel bit a random guy at a bus stop. Now he's Squirrel Man, and he can climb, glide, swing on web lines and turn into a squirrel. Now Kingsley, a giant Boston terrier, is stomping through downtown, and only Squirrel Man can stop him. Between missions, fly through the 20 orange rings against the clock.</p>
+    <p class="storyline" id="storyLine"></p>
     <div class="keys">
       <div class="sec">On foot</div>
       <kbd>W A S D</kbd><span>Run (camera-relative)</span>
@@ -186,9 +237,11 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
       <kbd>W S · A D · Mouse</kbd><span>In the air: pitch, bank and steer, like gliding. Shift for full power</span>
       <kbd>Land</kbd><span>Line up with a runway (or any big flat space), let go of Shift and ease the nose down with W. Below 80 m it slows to approach speed, levels the wings and flares by itself. Just don't dive steeply or bank hard. On the ground, S brakes</span>
       <kbd>E</kbd><span>Get out once you've stopped. In the air you can bail out, but not with passengers aboard</span>
+      <div class="sec">Story</div>
+      <kbd>Final boss</kbd><span>Kingsley, a giant Boston terrier, is charging his Sonic Bark. Every person you save breaks his focus and resets the meter. If he barks, you go back to the last checkpoint. Save everyone to win</span>
       <div class="sec">Disasters and rescues</div>
       <kbd>Every few minutes</kbd><span>A fire, flood or tornado strikes. Follow the green arrow to people and animals in trouble, touch them to pick them up, and carry them to the blue drop-off. Squirrels can carry animals but not people</span>
-      <kbd>N</kbd><span>Call in the next disaster now</span>
+      <kbd>N</kbd><span>Start the next mission now</span>
       <div class="sec">Street</div>
       <kbd>Jump on a car</kbd><span>Ride on its roof. Cars brake for you, but don't stand in front of a moving one</span>
       <kbd>R</kbd><span>Back to the last safe roof</span>
@@ -197,7 +250,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
       <summary>Controller layout</summary>
       <div class="keys">
         <kbd>Left stick</kbd><span>Run / dive and steer the glide. Click L3 to sprint</span>
-        <kbd>D-pad up</kbd><span>Call in the next disaster</span>
+        <kbd>D-pad up</kbd><span>Start the next mission</span>
         <kbd>Right stick</kbd><span>Look and steer</span>
         <kbd>A</kbd><span>Jump. In mid-air: glide</span>
         <kbd>B</kbd><span>Start or stop gliding. Next to the jet: get in or out (LB is the throttle)</span>
@@ -215,6 +268,10 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
       <button class="snd" id="tMusic" type="button">Music: on</button>
       <button class="snd" id="tSfx" type="button">Sound effects: on</button>
       <span class="sndhint">Controller: X music · Y sound</span>
+    </div>
+    <div class="sndrow">
+      <button class="snd" id="tStory" type="button">Watch the story</button>
+      <button class="snd" id="tRestart" type="button">Restart story</button>
     </div>
     <p class="padnote" id="padNote">Using a controller? Press any button on it so the browser can see it.</p>
     <button class="go" id="go" type="button">Drop in</button>
@@ -1815,7 +1872,10 @@ function pollPad(dt) {
   if (!pad.connected) { pad.connected = true; padNote(); if (playing) message('Controller<small>connected</small>', 1.2); }
   const btn = i => { const x = gp.buttons[i]; return !!(x && (x.pressed || x.value > 0.4)); };
   const down = i => btn(i) && !pad.prev[i];
-  if (!playing) {
+  if (CUT.panels) {
+    if (down(0) || down(9)) cutNext(true);
+    else if (down(8)) endCutscene(true);
+  } else if (!playing) {
     if (down(0) || down(9)) startGame(true);
     if (down(2)) { startAudio(); setSound('music', !SND.music); }
     if (down(3)) { startAudio(); setSound('sfx', !SND.sfx); }
@@ -1981,12 +2041,23 @@ const sfx = {
 
 // ---------- music: an original, generative synthwave score that follows the action ----------
 // 16th-note sequencer in A minor. Pads and bass always; hats, kick, snare and a lead arpeggio fade in with energy.
-// Disasters switch to a tense progression and a faster tempo.
-const MUS = { step: 0, next: 0, energy: 0.15, tense: false };
+// Four moods, each with its own progressions and tempo: calm free roam, tense disasters, a driving boss theme
+// for Kingsley and a slow, soft theme under the story panels. Each mood rotates through its progressions every 4 bars.
+const MUS = { step: 0, next: 0, energy: 0.15, mode: 'calm' };
+const BPM = { calm: 108, tense: 124, boss: 140, story: 84 };
+const ARPS = [[0, 1, 2, 1, 0, 2, 1, 2], [0, 2, 1, 2, 0, 1, 2, 1], [2, 1, 0, 1, 2, 1, 0, 2]];
 const midi = m => 440 * Math.pow(2, (m - 69) / 12);
+const chord = (root, tones) => ({ root, tones });
+const CH = {
+  Am: chord(45, [57, 60, 64]), F: chord(41, [57, 60, 65]), C: chord(48, [55, 60, 64]), G: chord(43, [55, 59, 62]), Em: chord(40, [55, 59, 64]),
+  Dm: chord(38, [57, 62, 65]), E: chord(40, [56, 59, 64]), Bb: chord(46, [58, 62, 65]), Fmaj7: chord(41, [57, 60, 64]), Dm7: chord(38, [57, 60, 65])
+};
+const prog = names => names.split(' ').map(n => CH[n]);
 const CHORDS = {
-  calm: [{ root: 45, tones: [57, 60, 64] }, { root: 41, tones: [57, 60, 65] }, { root: 48, tones: [55, 60, 64] }, { root: 43, tones: [55, 59, 62] }],      // Am F C G
-  tense: [{ root: 45, tones: [57, 60, 64] }, { root: 38, tones: [57, 62, 65] }, { root: 40, tones: [56, 59, 64] }, { root: 45, tones: [57, 60, 64] }]     // Am Dm E Am
+  calm: [prog('Am F C G'), prog('F G Em Am'), prog('C G Am F')],
+  tense: [prog('Am Dm E Am'), prog('Dm Am E E')],
+  boss: [prog('Am Bb Am G'), prog('Am F Bb E')],   // Phrygian and heavy
+  story: [prog('Fmaj7 Am Dm7 C'), prog('Fmaj7 C Dm7 E')]
 };
 function kick(t) { const c = audio.ctx, o = c.createOscillator(), g = c.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14); g.gain.setValueAtTime(0.85, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.28); o.connect(g).connect(audio.music); o.start(t); o.stop(t + 0.3); }
 function snare(t) { noiseHit(0.18, 'highpass', 1800, 1200, 0.32, 0.8, t - audio.ctx.currentTime, audio.music); tone(190, 0.08, 'triangle', 0.15, 140, t - audio.ctx.currentTime, audio.music); }
@@ -2001,23 +2072,49 @@ function padChord(t, tones, dur) {
   const c = audio.ctx;
   for (const m of tones) for (const det of [-7, 7]) {
     const o = c.createOscillator(), fl = c.createBiquadFilter(), g = c.createGain();
-    o.type = 'sawtooth'; o.frequency.value = midi(m); o.detune.value = det; fl.type = 'lowpass'; fl.frequency.value = MUS.tense ? 1400 : 950;
+    o.type = 'sawtooth'; o.frequency.value = midi(m); o.detune.value = det; fl.type = 'lowpass'; fl.frequency.value = { calm: 950, tense: 1400, boss: 1800, story: 800 }[MUS.mode];
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.03, t + 0.5); g.gain.setValueAtTime(0.03, t + dur - 0.4); g.gain.linearRampToValueAtTime(0.0001, t + dur);
     o.connect(fl).connect(g).connect(audio.music); o.start(t); o.stop(t + dur + 0.05);
   }
 }
 function playStep(i, t, sixteenth) {
-  const bar = Math.floor(i / 16) % 4, s = i % 16, e = MUS.energy, ch = (MUS.tense ? CHORDS.tense : CHORDS.calm)[bar];
-  if (s === 0) padChord(t, ch.tones, sixteenth * 16);
-  if (e > 0.2 && [0, 3, 6, 8, 11, 14].includes(s)) synth(t, midi(ch.root + (s === 6 || s === 14 ? 12 : 0)), sixteenth * 1.8, 'sawtooth', 0.16, 280);
+  const bar = Math.floor(i / 16) % 4, s = i % 16, e = MUS.energy, mode = MUS.mode;
+  const progs = CHORDS[mode], pi = Math.floor(i / 64) % progs.length, c = progs[pi][bar], arp = ARPS[pi % ARPS.length];
+  if (s === 0) padChord(t, c.tones, sixteenth * 16);
+  if (mode === 'story') { // no drums: a soft bell arpeggio and a low root note
+    if (s === 0) synth(t, midi(c.root), sixteenth * 14, 'triangle', 0.12, 300);
+    if (s % 2 === 0) synth(t, midi(c.tones[arp[(s / 2) % 8]] + 12), sixteenth * 3, 'triangle', 0.05, 2400, s % 4 ? audio.echo : null);
+    return;
+  }
+  if (mode === 'boss') { // driving eighth-note bass, four on the floor, snare backbeat and a growling saw lead
+    if (s % 2 === 0) synth(t, midi(c.root + (s % 8 === 6 ? 12 : 0)), sixteenth * 1.6, 'sawtooth', 0.18, 340);
+    if (s % 4 === 0) kick(t);
+    if (s === 4 || s === 12) snare(t);
+    if (s === 14 && bar === 3) snare(t + sixteenth); // a fill into the next phrase
+    hat(t, s % 2 ? 0.03 : 0.06);
+    if ([0, 3, 6, 10, 12].includes(s)) {
+      const m = c.tones[[2, 1, 0, 1, 2][[0, 3, 6, 10, 12].indexOf(s)]] + 12;
+      synth(t, midi(m), sixteenth * 1.8, 'sawtooth', 0.045, 1500); synth(t, midi(m), sixteenth * 1.8, 'square', 0.02, 1500, audio.echo);
+    }
+    return;
+  }
+  if (e > 0.2 && [0, 3, 6, 8, 11, 14].includes(s)) synth(t, midi(c.root + (s === 6 || s === 14 ? 12 : 0)), sixteenth * 1.8, 'sawtooth', 0.16, 280);
   if (e > 0.3 && s % 2 === 0) hat(t, s % 4 === 2 ? 0.07 : 0.04);
   if (e > 0.75 && s % 2 === 1) hat(t, 0.025);
   if (e > 0.4 && (s === 0 || s === 8 || (e > 0.7 && (s === 4 || s === 12)) || (s === 10 && i % 32 >= 16))) kick(t);
   if (e > 0.5 && (s === 4 || s === 12)) snare(t);
   if (e > 0.6) { // lead arpeggio over the chord, an octave up, with echo
-    const pat = [0, 1, 2, 1, 0, 2, 1, 2], m = ch.tones[pat[s % 8]] + 12 + (s >= 8 && bar % 2 ? 12 : 0);
+    const m = c.tones[arp[s % 8]] + 12 + (s >= 8 && bar % 2 ? 12 : 0);
     if (s % 2 === 0 || e > 0.85) { synth(t, midi(m), sixteenth * 1.4, 'square', 0.045, 1800); synth(t, midi(m), sixteenth * 1.4, 'square', 0.02, 1800, audio.echo); }
   }
+  if (mode === 'calm' && pi === 1 && (s === 0 || s === 10)) synth(t, midi(c.tones[2] + 24), sixteenth * 5, 'triangle', 0.04, 3000, audio.echo); // a high bell countermelody
+}
+// short fanfares on the music bus: a jingle after each mission, a big one when Kingsley goes down
+function fanfare(big) {
+  if (!audio || !SND.music) return;
+  const t = audio.ctx.currentTime + 0.05, notes = big ? [60, 64, 67, 72, 67, 72, 76, 79] : [67, 72, 76, 79], d = big ? 0.16 : 0.12;
+  notes.forEach((m, k) => { synth(t + k * d, midi(m), d * (k === notes.length - 1 ? 6 : 1.5), 'square', 0.06, 2600); synth(t + k * d, midi(m - 12), d * 1.5, 'triangle', 0.08, 1200); });
+  if (big) padChord(t + notes.length * d, [60, 64, 67, 72], 2.5);
 }
 
 // keep the loops, the music and the spot effects in step with the game each frame
@@ -2050,13 +2147,14 @@ function updateAudio(dt, speed, hs) {
     if (d < 140) noiseHit(0.03 + Math.random() * 0.05, 'bandpass', 1500 + Math.random() * 2500, 800, 0.12 * (1 - d / 140), 2);
   }
   // music energy follows what you're doing; disasters make it tense
-  MUS.tense = !!(a && !a.ending);
+  MUS.mode = CUT.panels ? 'story' : a && a.type === 'boss' && (a.phase === 'hunt' || a.phase === 'bark') ? 'boss' : a && !a.ending ? 'tense' : 'calm';
   let want = 0.15 + Math.min(0.45, speed / 40);
   if (P.mode === 'swing' || P.mode === 'glide' || P.mode === 'grind' || P.mode === 'surf' || P.mode === 'plane' || P.bike) want += 0.35;
-  if (MUS.tense) want = Math.max(want, 0.65);
+  if (MUS.mode === 'tense') want = Math.max(want, 0.65);
+  if (MUS.mode === 'boss') want = 1;
   if (!playing) want = 0.12;
   MUS.energy += (clamp(want, 0, 1) - MUS.energy) * Math.min(1, dt * (want > MUS.energy ? 0.8 : 0.25));
-  const sixteenth = 60 / (MUS.tense ? 124 : 108) / 4;
+  const sixteenth = 60 / BPM[MUS.mode] / 4;
   if (MUS.next < now - 1) MUS.next = now + 0.05; // the tab was hidden: don't play catch-up
   if (SND.music) while (MUS.next < now + 0.2) { playStep(MUS.step, MUS.next, sixteenth); MUS.next += sixteenth; MUS.step++; }
   else MUS.next = now + 0.05;
@@ -2828,14 +2926,17 @@ function makeEvac(pos, kind, alongX) {
 
 const DIS = { active: null, next: 30, order: ['fire', 'tornado', 'flood'], idx: 0, victims: [], evac: null, carry: null, hintT: 0, zone: null };
 let rescuedTotal = parseInt(store.get('vertigo-rescued')) || 0;
-const NAMES = { fire: 'Building fire', flood: 'Flash flood', tornado: 'Tornado' };
+const NAMES = { fire: 'Building fire', flood: 'Flash flood', tornado: 'Tornado', boss: 'Kingsley' };
+const GOAL = { fire: 'fire truck', flood: 'helicopter', tornado: 'storm shelter', boss: 'bunker' };
 function alertText() {
   const a = DIS.active; if (!a) return '';
   const left = DIS.victims.filter(v => v.state !== 'saved').length;
   const where = DISTRICT_NAMES[districtAt(Math.floor(a.cx / PERIOD), Math.floor(a.cz / PERIOD))] || 'the city';
-  if (!left) return `${NAMES[a.type]} · everyone is safe`;
-  const goal = a.type === 'fire' ? 'fire truck' : a.type === 'flood' ? 'helicopter on the roof' : 'storm shelter';
-  return `${NAMES[a.type]} in ${where} · ${left} to rescue · bring them to the ${goal}`;
+  const tag = a.mission ? `Mission ${a.mission}/${MISSIONS.length} · ` : '';
+  if (!left) return `${tag}${NAMES[a.type]} · everyone is safe`;
+  if (a.type === 'boss') return `Final boss · Kingsley the giant Boston terrier · ${left} to save · bring them to the bunker`;
+  const goal = a.type === 'flood' ? 'helicopter on the roof' : GOAL[a.type];
+  return `${tag}${NAMES[a.type]} in ${where} · ${left} to rescue · bring them to the ${goal}`;
 }
 function updateAlert() {
   const el = $('alert'), t = alertText();
@@ -2977,8 +3078,10 @@ function dropCarry(home) { // put whoever you're carrying back down (at home aft
 }
 function endDisaster() {
   const a = DIS.active; if (!a) return;
+  if (a.type === 'boss') { startMeteor(); return; }
   a.ending = 0.0001;
-  message('Everyone is safe<small>Nice work. Things will be quiet for a bit</small>', 2);
+  if (a.mission) missionDone(a.mission);
+  else message('Everyone is safe<small>Nice work. Things will be quiet for a bit</small>', 2);
 }
 function updateDisaster(dt, now) {
   stepParticles(flames, dt, 0.6); stepParticles(smoke, dt, 0.15);
@@ -3009,7 +3112,7 @@ function updateDisaster(dt, now) {
     if (t >= 1) a.alive = Math.max(0, a.alive - dt / 6);
     updateFunnel(dt, a.pos, a.alive);
     if (a.alive <= 0) removeFunnel();
-  }
+  } else if (a.type === 'boss') updateBoss(dt, now);
   if (DIS.evac) {
     const e = DIS.evac, blink = Math.floor(now / 250) % 2;
     e.lights.forEach((l, i) => { l.visible = (i + blink) % 2 === 0; });
@@ -3046,7 +3149,7 @@ function updateDisaster(dt, now) {
         } else {
           DIS.carry = v; v.state = 'carried'; v.beacon.visible = false; attachCarry(v);
           v.mesh.rotation.x = v.kind === 'person' && P.form === 'human' ? 0.25 : 0;
-          message(`Got ${v.kind === 'person' ? 'them' : 'the ' + v.kind}!<small>Bring them to the ${a.type === 'fire' ? 'fire truck' : a.type === 'flood' ? 'helicopter' : 'storm shelter'}</small>`, 1.4);
+          message(`Got ${v.kind === 'person' ? 'them' : 'the ' + v.kind}!<small>Bring them to the ${GOAL[a.type]}</small>`, 1.4);
           rumble(0.2, 0.5, 120); sfx.pickup();
         }
       }
@@ -3059,7 +3162,7 @@ function updateDisaster(dt, now) {
     else if (DIS.carry.form !== P.form) attachCarry(DIS.carry);
   }
   // deliver
-  if (DIS.carry && DIS.evac && Math.hypot(p.x - DIS.evac.pos.x, p.z - DIS.evac.pos.z) < 5 && Math.abs(p.y - DIS.evac.pos.y) < 4) {
+  if (DIS.carry && DIS.evac && (a.type !== 'boss' || a.phase === 'hunt') && Math.hypot(p.x - DIS.evac.pos.x, p.z - DIS.evac.pos.z) < 5 && Math.abs(p.y - DIS.evac.pos.y) < 4) {
     const v = DIS.carry; DIS.carry = null;
     scene.add(v.mesh); v.mesh.scale.setScalar(1); v.mesh.rotation.set(0, Math.random() * 6.28, 0);
     v.home.set(DIS.evac.pos.x + (Math.random() - 0.5) * 4, DIS.evac.pos.y, DIS.evac.pos.z + (Math.random() - 0.5) * 4); v.mesh.position.copy(v.home);
@@ -3068,6 +3171,7 @@ function updateDisaster(dt, now) {
     const left = DIS.victims.filter(x => x.state !== 'saved').length;
     sfx.saved();
     message(`Saved!<small>${left ? left + ' still waiting' : 'That was the last one'}</small>`, 1.4); rumble(0, 0.7, 160);
+    if (a.type === 'boss') bossSaved(left);
     if (!left) endDisaster();
   }
   updateAlert();
@@ -3080,16 +3184,21 @@ function updateDisaster(dt, now) {
 function clearDisaster() {
   const a = DIS.active; if (!a) return;
   if (a.water) scene.remove(a.water);
+  for (const m of a.meshes || []) scene.remove(m);
+  if (a.type === 'boss') { $('boss').hidden = true; document.body.classList.remove('bossfight'); DIS.restart = false; }
   for (const pr of a.props || []) { scene.remove(pr.mesh); removeCollider(pr.col); }
   removeFunnel();
   for (const v of DIS.victims) scene.remove(v.mesh);
   if (DIS.evac) scene.remove(DIS.evac.g);
-  DIS.victims = []; DIS.evac = null; DIS.carry = null; DIS.active = null; DIS.next = 100;
-  updateAlert();
+  DIS.victims = []; DIS.evac = null; DIS.carry = null; DIS.active = null;
+  DIS.next = STORY.won ? 100 : STORY.done >= MISSIONS.length ? 4 : 15; // story missions come back to back
+  updateAlert(); storyHud();
 }
 function callDisaster() {
   if (DIS.active) { message(`${NAMES[DIS.active.type]} in progress<small>Rescue everyone first</small>`, 1.2); return; }
-  startDisaster(DIS.order[DIS.idx++ % DIS.order.length]);
+  if (!STORY.won && STORY.done >= MISSIONS.length) bossTime();
+  else if (!STORY.won) startMission(STORY.done + 1);
+  else startDisaster(DIS.order[DIS.idx++ % DIS.order.length]);
 }
 function rescueTarget() { // what the HUD arrow points at during a disaster
   if (!DIS.active) return null;
@@ -3103,10 +3212,338 @@ function drawDisasterMap(ctx) {
   if (a.type === 'flood') { ctx.fillStyle = 'rgba(95,140,160,0.45)'; ctx.fillRect(mmX(a.x0), mmX(a.z0), (a.x1 - a.x0) * mscale, (a.z1 - a.z0) * mscale); }
   if (a.type === 'fire') { ctx.fillStyle = '#ff3b1a'; ctx.fillRect(mmX(a.f[0]) - 2, mmX(a.f[1]) - 2, (a.f[2] - a.f[0]) * mscale + 4, (a.f[3] - a.f[1]) * mscale + 4); }
   if (a.type === 'tornado' && funnel) { ctx.strokeStyle = '#d8d2c8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(mmX(a.pos.x), mmX(a.pos.z), 9, 0, Math.PI * 2); ctx.stroke(); }
+  if (a.type === 'boss') { const k = a.dog.g.position; ctx.fillStyle = '#f2efe8'; ctx.strokeStyle = '#1d1a20'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(mmX(k.x), mmX(k.z), 11, 0, Math.PI * 2); ctx.stroke(); ctx.fill(); }
   if (DIS.evac) { ctx.fillStyle = '#5fd4ff'; ctx.fillRect(mmX(DIS.evac.pos.x) - 5, mmX(DIS.evac.pos.z) - 5, 10, 10); }
   ctx.fillStyle = '#7dff8a';
   for (const v of DIS.victims) if (v.state === 'trapped' || v.state === 'swept') { ctx.beginPath(); ctx.arc(mmX(v.mesh.position.x), mmX(v.mesh.position.z), 5, 0, Math.PI * 2); ctx.fill(); }
 }
+
+// ---------- story: Squirrel Man ----------
+// A radioactive spider bites a squirrel, the squirrel bites a random guy, and he becomes Squirrel Man.
+// Straight from the origin story into the boss fight with Kingsley, a giant Boston terrier. MISSIONS is empty, so there are
+// no rescue missions first; add titles to it to put missions back in front of the boss.
+// Progress is saved after every mission and at boss checkpoints.
+const STORY = Object.assign({ intro: false, done: 0, bossSeen: false, cp: 0, won: false },
+  (() => { try { return JSON.parse(store.get('vertigo-story')) || {}; } catch (e) { return {}; } })());
+function saveStory() { store.set('vertigo-story', JSON.stringify(STORY)); }
+const MISSIONS = [];
+const NEWS = {
+  2: 'The Vertigo Times asks: WHO IS SQUIRREL MAN?', 3: 'People hear strange barking out past the docks at night',
+  4: 'One mission left. The barking is getting louder'
+};
+const BOSS_N = 9, BOSS_CP = 3, KS = 11; // people to save, a checkpoint every 3, Kingsley's scale (about 24 m to the ear tips)
+const ARENA = new THREE.Vector3(32, 0, 32), BUNKER = new THREE.Vector3(32, 0, 200.2);
+const KINGSLEY_PATH = [[-64, -64], [128, -64], [128, 128], [-64, 128]]; // he prowls the streets around the start tower
+const barkTime = saved => Math.max(30, 50 - saved * 2.5); // seconds to charge; he gets angrier as you go
+let quake = 0; // camera shake from stomps and the meteor
+
+function storyHud() {
+  const a = DIS.active, n = MISSIONS.length;
+  $('mission').textContent = STORY.won ? 'Done' : STORY.done >= n ? 'Boss' : `${a && a.mission ? a.mission : STORY.done + 1}/${n}`;
+  $('storyLine').textContent = STORY.won ? 'Story complete. You beat Kingsley, and the city is yours to explore.'
+    : STORY.done >= n ? `Story: final boss, Kingsley${STORY.cp ? ` (checkpoint: ${STORY.cp} of ${BOSS_N} saved)` : ''}`
+    : STORY.intro ? `Story: mission ${STORY.done + 1} of ${n}` : '';
+}
+function startMission(n) {
+  const type = DIS.order[(n - 1) % DIS.order.length];
+  startDisaster(type);
+  if (!DIS.active) return;
+  DIS.active.mission = n; storyHud(); updateAlert();
+  message(`Mission ${n} of ${MISSIONS.length}: ${NAMES[type]}<small>${MISSIONS[n - 1]}</small>`, 3);
+}
+function missionDone(n) {
+  STORY.done = Math.max(STORY.done, n); saveStory(); storyHud();
+  const left = MISSIONS.length - STORY.done;
+  fanfare(false);
+  if (left) message(`Mission ${n} complete<small>${NEWS[n] || `${left} to go. The next one starts soon`}</small>`, 3.5);
+  else { message(`Mission ${n} complete<small>All ${MISSIONS.length} done. Wait... the ground is shaking</small>`, 3.5); quake = 1; }
+}
+function bossTime() {
+  if (STORY.bossSeen) { startBoss(); return; }
+  showCutscene(STORY_BOSS, fp => { STORY.bossSeen = true; saveStory(); resumePlay(fp); startBoss(); });
+}
+
+// ---------- story panels (drawn as little comic frames) ----------
+const svgWrap = (bg, body) => `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="320" height="180" fill="${bg}"/>${body}</svg>`;
+const SKY = [[0, 34, 70], [30, 28, 100], [54, 40, 58], [92, 26, 118], [116, 38, 80], [152, 30, 96], [180, 44, 66], [222, 30, 124], [250, 40, 84], [288, 32, 104]];
+const skyline = (col, k = 1) => SKY.map(([x, w, h]) => `<rect x="${x}" y="${180 - h * k}" width="${w}" height="${h * k}" fill="${col}"/>`).join('');
+const pow = (x, y, t, rot = -8, size = 34, col = '#ffd23f') => `<text x="${x}" y="${y}" transform="rotate(${rot} ${x} ${y})" text-anchor="middle" font-family="Saira Condensed, Arial Narrow, sans-serif" font-weight="800" font-size="${size}" fill="${col}" stroke="#17142b" stroke-width="5" paint-order="stroke">${t}</text>`;
+const spiderArt = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><circle r="26" fill="#7dff8a" opacity=".18"/><g stroke="#7dff8a" stroke-width="2.4" fill="none" stroke-linecap="round">${[-1, 1].map(d => [0, 1, 2, 3].map(i => `<polyline points="0,0 ${d * (12 + i * 2)},${-10 + i * 6} ${d * (20 + i * 3)},${2 + i * 7}"/>`).join('')).join('')}</g><circle r="7" fill="#7dff8a"/><circle cy="-9" r="4.5" fill="#7dff8a"/><circle cx="-1.5" cy="-10" r="1" fill="#111"/><circle cx="1.5" cy="-10" r="1" fill="#111"/></g>`;
+const squirrelArt = (x, y, s, glow, flip) => `<g transform="translate(${x} ${y}) scale(${flip ? -s : s} ${s})">${glow ? '<circle cy="-18" r="36" fill="#7dff8a" opacity=".25"/>' : ''}<path d="M-8 -6 C-34 -10 -36 -44 -14 -46 C-2 -47 2 -36 -6 -30 C-16 -26 -18 -16 -8 -12 Z" fill="#b5692e"/><ellipse cx="4" cy="-10" rx="12" ry="9" fill="#b5692e"/><circle cx="15" cy="-21" r="7" fill="#b5692e"/><path d="M12 -27 l2 -7 l4 6 Z" fill="#b5692e"/><circle cx="18" cy="-22" r="1.6" fill="#111"/><rect x="0" y="-3" width="4" height="4" fill="#b5692e"/><rect x="9" y="-3" width="4" height="4" fill="#b5692e"/></g>`;
+const guyArt = (x, y, s, shirt) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-7" y="-40" width="5" height="40" fill="#2a2d3a"/><rect x="2" y="-40" width="5" height="40" fill="#2a2d3a"/><rect x="-10" y="-72" width="20" height="34" rx="3" fill="${shirt}"/><rect x="-15" y="-70" width="5" height="26" rx="2" fill="${shirt}"/><rect x="10" y="-70" width="5" height="26" rx="2" fill="${shirt}"/><circle cy="-82" r="9" fill="#e0b08a"/><path d="M-9 -84 Q0 -96 9 -84 Z" fill="#3a2a20"/></g>`;
+const heroArt = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M6 -30 C44 -34 52 -92 24 -102 C10 -106 2 -90 12 -84 C26 -76 22 -50 4 -44 Z" fill="#b5692e"/><path d="M-11 -72 L-46 -50 L-40 -44 L-11 -46 Z M11 -72 L46 -50 L40 -44 L11 -46 Z" fill="#ff6a1f"/><rect x="-9" y="-40" width="7" height="40" rx="2" fill="#3a2a20"/><rect x="2" y="-40" width="7" height="40" rx="2" fill="#3a2a20"/><rect x="-12" y="-74" width="24" height="38" rx="5" fill="#ff6a1f"/><ellipse cy="-54" rx="7" ry="10" fill="#f3ece2"/><path d="M-9 -95 l-3 -12 l9 7 Z M9 -95 l3 -12 l-9 7 Z" fill="#c47a3e"/><circle cy="-86" r="12" fill="#c47a3e"/><rect x="-12" y="-91" width="24" height="7" rx="3" fill="#1a1210"/><circle cx="-5" cy="-87.5" r="2" fill="#fff"/><circle cx="5" cy="-87.5" r="2" fill="#fff"/><path d="M-4 -79 Q0 -76 4 -79" stroke="#1a1210" stroke-width="1.6" fill="none"/></g>`;
+const kingsleyArt = (x, y, s, open, dizzy) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-34 -18 L-50 -78 L-12 -40 Z M34 -18 L50 -78 L12 -40 Z" fill="#1d1a20"/><path d="M-32 -26 L-44 -66 L-18 -40 Z M32 -26 L44 -66 L18 -40 Z" fill="#e89aa0"/><ellipse rx="46" ry="42" fill="#1d1a20"/><path d="M-5 -42 L5 -42 L9 -8 L-9 -8 Z" fill="#f2efe8"/><ellipse cy="16" rx="24" ry="17" fill="#f2efe8"/>${dizzy
+  ? '<path d="M-26 -14 l12 12 M-14 -14 l-12 12 M14 -14 l12 12 M26 -14 l-12 12" stroke="#f2efe8" stroke-width="4"/><circle cx="-40" cy="-52" r="4" fill="#ffd23f"/><circle cx="0" cy="-60" r="4" fill="#ffd23f"/><circle cx="40" cy="-52" r="4" fill="#ffd23f"/>'
+  : '<circle cx="-20" cy="-8" r="11" fill="#f2efe8"/><circle cx="20" cy="-8" r="11" fill="#f2efe8"/><circle cx="-19" cy="-7" r="6" fill="#2a1a10"/><circle cx="19" cy="-7" r="6" fill="#2a1a10"/>'}<ellipse cy="6" rx="9" ry="6" fill="#111"/>${open ? '<ellipse cy="27" rx="12" ry="10" fill="#5a1420"/>' : '<path d="M-8 24 Q0 30 8 24" stroke="#111" fill="none" stroke-width="2"/>'}<rect x="-30" y="36" width="60" height="8" rx="4" fill="#c8261e"/><circle cy="48" r="5" fill="#e3b22a"/></g>`;
+const STORY_INTRO = [
+  { kicker: 'Harbor Works · midnight', title: 'Something escaped', text: 'A lab truck hit a pothole on the docks. A jar cracked open, and out crawled a glowing green spider. It was radioactive.',
+    art: svgWrap('#121c33', `<circle cx="270" cy="34" r="16" fill="#e9e3d6"/>${skyline('#1d2a47')}<rect y="150" width="320" height="30" fill="#2a2438"/><path d="M112 150 L112 112 Q112 102 122 102 L136 102 M150 150 L156 124 L148 116" stroke="#9fb3c9" stroke-width="3" fill="none"/>${spiderArt(178, 124, 2)}${pow(250, 70, 'CRACK!', 8, 30, '#9fe8ff')}`) },
+  { kicker: 'Greenway Park · 6 a.m.', title: 'One bite', text: 'The spider crawled into the park and bit a squirrel that was minding its own business. The squirrel started to glow.',
+    art: svgWrap('#f0a36a', `<circle cx="262" cy="140" r="46" fill="#ffd27a"/><rect y="140" width="320" height="40" fill="#3f7a4f"/><rect x="52" y="70" width="14" height="72" fill="#5a3b26"/><circle cx="59" cy="62" r="34" fill="#4f8a3a"/><circle cx="36" cy="80" r="22" fill="#4f8a3a"/><circle cx="84" cy="78" r="24" fill="#4f8a3a"/>${squirrelArt(150, 140, 1.8, true)}${spiderArt(196, 134, 0.55)}${pow(206, 64, 'BITE!')}`) },
+  { kicker: 'Downtown · 8 a.m.', title: 'Wrong place, wrong time', text: 'The glowing squirrel ran down the street and bit a random guy waiting for the bus. Just some guy, on his way to work.',
+    art: svgWrap('#e9b07a', `${skyline('#c98a64')}<rect y="150" width="320" height="30" fill="#7a6f6a"/><rect x="86" y="70" width="4" height="80" fill="#3a3f55"/><rect x="72" y="62" width="32" height="18" rx="3" fill="#2f5d8a"/><text x="88" y="75" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#fff">BUS</text>${guyArt(150, 150, 1.1, '#3f7a5a')}${squirrelArt(176, 150, 0.8, true, true)}${pow(236, 62, 'OUCH!')}`) },
+  { kicker: 'The next morning', title: 'Squirrel Man', text: 'He can climb any wall, glide on flaps, swing on web lines and turn into a squirrel whenever he wants. The city is going to need all of it.',
+    art: svgWrap('#2a1f45', `<circle cx="220" cy="110" r="70" fill="#ff6a1f" opacity=".35"/>${skyline('#17142b')}${heroArt(220, 168, 1.2)}${pow(84, 76, 'SQUIRREL', -6, 40, '#ff6a1f')}${pow(84, 116, 'MAN', -6, 40, '#ff6a1f')}`) }
+];
+const STORY_BOSS = [
+  { kicker: 'One week later', title: 'The ground shakes', text: 'The radioactive squirrel had one bite left. It bit Kingsley, a Boston terrier, and Kingsley grew taller than the buildings. Now he\'s prowling downtown.',
+    art: svgWrap('#3a2030', `${kingsleyArt(160, 98, 1.1, false)}${skyline('#24152a', 0.62)}${heroArt(36, 176, 0.3)}${pow(266, 44, 'GRRR...', 6, 30)}`) },
+  { kicker: 'Final boss', title: 'The Sonic Bark', text: `Kingsley is charging a bark so loud it knocks out the whole city. Save ${BOSS_N} people and bring them to the bunker. Every rescue breaks his focus and resets the meter. If he barks, you go back to the last checkpoint.`, go: 'Fight',
+    art: svgWrap('#1c2238', `${[1, 2, 3, 4].map(i => `<circle cx="160" cy="127" r="${30 + i * 22}" fill="none" stroke="#9fe8ff" stroke-width="4" opacity="${1 - i * 0.2}"/>`).join('')}${kingsleyArt(160, 100, 1, true)}${pow(160, 172, 'WOOOOF!', 0, 30, '#9fe8ff')}`) }
+];
+const STORY_END = [
+  { kicker: 'Out of nowhere', title: 'Meteor!', text: 'As the last person reached the bunker, a meteor came streaking out of the sky and bonked Kingsley right on the head.',
+    art: svgWrap('#2a1f45', `${skyline('#17142b')}<path d="M310 -6 L176 74" stroke="#ffb060" stroke-width="16" stroke-linecap="round" opacity=".55"/>${kingsleyArt(150, 124, 0.9, true, true)}<circle cx="172" cy="76" r="22" fill="#ff6a1f" opacity=".5"/><circle cx="172" cy="76" r="13" fill="#ffd27a"/>${pow(258, 130, 'BONK!', 10, 40)}`) },
+  { kicker: 'Good boy', title: 'Kingsley shrank back', text: 'The meteor knocked the radiation right out of him. Kingsley shrank back to normal size, wagged his little stub of a tail and asked for a treat.',
+    art: svgWrap('#f0a36a', `<rect y="140" width="320" height="40" fill="#3f7a4f"/>${kingsleyArt(110, 112, 0.55, false)}<path d="M110 52 c-6 -10 -22 -6 -16 8 l16 14 l16 -14 c6 -14 -10 -18 -16 -8 Z" fill="#ff4f7a"/>${heroArt(220, 166, 1)}`) },
+  { kicker: 'The end', title: 'Vertigo City is safe', text: 'Squirrel Man finished the story. Disasters still strike now and then, so keep exploring, keep rescuing and keep chasing those rings.', go: 'Keep playing',
+    art: svgWrap('#2a1f45', `<circle cx="160" cy="120" r="80" fill="#ff6a1f" opacity=".3"/>${skyline('#17142b')}<rect x="130" y="100" width="60" height="80" fill="#17142b"/>${heroArt(160, 101, 0.6)}${pow(160, 52, 'THE END', 0, 44, '#ff6a1f')}`) }
+];
+const CUT = { panels: null, i: 0, done: null };
+function showCutscene(panels, done) {
+  playing = false;
+  if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+  $('intro').hidden = true; $('hud').hidden = true; $('touch').hidden = true; $('msg').style.opacity = 0;
+  CUT.panels = panels; CUT.i = 0; CUT.done = done; drawPanel();
+  $('story').hidden = false; $('cutNext').focus();
+}
+function drawPanel() {
+  const p = CUT.panels[CUT.i], last = CUT.i === CUT.panels.length - 1;
+  $('cutArt').innerHTML = p.art; $('cutKicker').textContent = p.kicker; $('cutTitle').textContent = p.title; $('cutText').textContent = p.text;
+  $('cutNext').textContent = last ? p.go || 'Play' : 'Next';
+  $('cutDots').textContent = `${CUT.i + 1} / ${CUT.panels.length}`;
+  $('cutSkip').hidden = last;
+}
+function cutNext(fromPad) {
+  if (!CUT.panels) return;
+  sfx.click();
+  if (++CUT.i < CUT.panels.length) drawPanel(); else endCutscene(fromPad);
+}
+function endCutscene(fromPad) {
+  if (!CUT.panels) return;
+  const done = CUT.done; CUT.panels = CUT.done = null; $('story').hidden = true;
+  if (done) done(fromPad);
+}
+$('cutNext').addEventListener('click', () => cutNext(false));
+$('cutSkip').addEventListener('click', () => endCutscene(false));
+addEventListener('keydown', e => {
+  if (!CUT.panels || e.repeat || (e.target.tagName === 'BUTTON' && (e.code === 'Space' || e.code === 'Enter'))) return; // the focused button handles those itself
+  if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowRight') { e.preventDefault(); cutNext(false); }
+  else if (e.code === 'Escape') endCutscene(false);
+});
+$('tStory').addEventListener('click', () => { startAudio(); showCutscene(STORY_INTRO, () => { $('intro').hidden = false; $('tStory').focus(); }); });
+$('tRestart').addEventListener('click', () => {
+  const b = $('tRestart');
+  if (!b.dataset.arm) { b.dataset.arm = '1'; b.textContent = 'Click again to restart'; setTimeout(() => { delete b.dataset.arm; b.textContent = 'Restart story'; }, 3000); return; }
+  delete b.dataset.arm; b.textContent = 'Restart story';
+  if (DIS.active) clearDisaster();
+  Object.assign(STORY, { done: 0, bossSeen: false, cp: 0, won: false }); saveStory();
+  DIS.next = 4; storyHud();
+});
+
+// ---------- the final boss: Kingsley ----------
+function makeKingsley() { // built at dog size (about 2 units to the ear tips), then scaled up
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body); g.scale.setScalar(KS);
+  const blk = M(0x1d1a20), wht = M(0xf2efe8), pink = M(0xe89aa0);
+  const add = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; (parent || body).add(m); return m; };
+  add(ball(0.5, 0.85, 0.75, 1.25), blk, 0, 1.05, 0);
+  add(ball(0.36, 0.95, 1, 0.65), wht, 0, 0.98, -0.48); // white chest
+  const tail = new THREE.Group(); tail.position.set(0, 1.22, 0.58); body.add(tail);
+  add(box(0.09, 0.09, 0.2), blk, 0, 0.02, 0.08, tail).rotation.x = -0.4; // a stub of a tail
+  const legs = [];
+  for (const [x, z] of [[-0.3, -0.45], [0.3, -0.45], [-0.3, 0.45], [0.3, 0.45]]) {
+    const l = new THREE.Group(); l.position.set(x, 0.8, z); g.add(l);
+    add(box(0.22, 0.72, 0.24), blk, 0, -0.36, 0, l);
+    add(box(0.26, 0.12, 0.32), wht, 0, -0.74, -0.03, l); // white socks
+    legs.push(l);
+  }
+  const collar = add(new THREE.TorusGeometry(0.34, 0.055, 6, 18), M(0xc8261e), 0, 1.36, -0.52); collar.rotation.x = Math.PI / 2 - 0.5;
+  add(ball(0.07), M(0xe3b22a), 0, 1.12, -0.84);
+  const neck = new THREE.Group(); neck.position.set(0, 1.4, -0.55); body.add(neck);
+  const head = new THREE.Group(); neck.add(head);
+  add(ball(0.46, 1.08, 0.95, 0.95), blk, 0, 0.22, -0.18, head);
+  add(box(0.11, 0.42, 0.06), wht, 0, 0.36, -0.58, head).rotation.x = -0.35; // white blaze up the forehead
+  add(ball(0.2, 1.25, 0.85, 0.9), wht, 0, 0.06, -0.6, head); // flat little muzzle
+  add(ball(0.085, 1.35, 0.9, 0.8), blk, 0, 0.14, -0.78, head);
+  for (const s of [-1, 1]) {
+    add(ball(0.11), wht, s * 0.2, 0.32, -0.52, head); // big round eyes
+    add(ball(0.07), M(0x2a1a10), s * 0.21, 0.32, -0.61, head);
+    add(new THREE.ConeGeometry(0.16, 0.5, 6), blk, s * 0.28, 0.72, -0.14, head).rotation.z = -s * 0.38; // bat ears
+    const inner = add(new THREE.ConeGeometry(0.1, 0.34, 6), pink, s * 0.29, 0.68, -0.2, head); inner.rotation.z = -s * 0.38;
+  }
+  const jaw = new THREE.Group(); jaw.position.set(0, -0.02, -0.42); head.add(jaw);
+  add(box(0.3, 0.07, 0.34), wht, 0, -0.04, -0.17, jaw);
+  add(box(0.16, 0.03, 0.22), pink, 0, 0.01, -0.17, jaw);
+  const glow = new THREE.Mesh(ball(0.2), new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  glow.position.set(0, -0.02, -0.74); glow.visible = false; head.add(glow);
+  const stars = new THREE.Group(); stars.position.set(0, 0.95, -0.2); stars.visible = false; head.add(stars);
+  for (let i = 0; i < 5; i++) { const st = new THREE.Mesh(new THREE.OctahedronGeometry(0.07), new THREE.MeshBasicMaterial({ color: 0xffd23f })); st.position.set(Math.cos(i * 1.257) * 0.45, 0, Math.sin(i * 1.257) * 0.45); stars.add(st); }
+  return { g, body, legs, neck, head, jaw, glow, stars, tail };
+}
+function startBoss() {
+  if (DIS.active) return;
+  const saved = Math.min(STORY.cp, BOSS_N - 1), dog = makeKingsley();
+  dog.g.position.set(KINGSLEY_PATH[0][0], 0, KINGSLEY_PATH[0][1]); dog.g.rotation.y = -Math.PI / 2;
+  const wave = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.3, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  const wave2 = new THREE.Mesh(new THREE.TorusGeometry(1, 0.015, 6, 96), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  wave2.rotation.x = Math.PI / 2; wave.visible = wave2.visible = false; wave.frustumCulled = wave2.frustumCulled = false;
+  scene.add(dog.g, wave, wave2);
+  DIS.active = { type: 'boss', cx: ARENA.x, cz: ARENA.z, t: 0, phase: 'hunt', charge: 0, stun: 0, growlT: 0, saved, wi: 1, walk: 0, ph: 0, pct: -1,
+    dog, wave, wave2, headPos: new THREE.Vector3(), meshes: [dog.g, wave, wave2] };
+  // people stranded on roofs all around him, spread out
+  const ok = ['office', 'glass', 'brick', 'apartment', 'deco', 'house', 'hotel'], need = BOSS_N - saved;
+  const roofs = footprints.filter(f => {
+    const x = (f[0] + f[2]) / 2, z = (f[1] + f[3]) / 2, d = Math.hypot(x - ARENA.x, z - ARENA.z);
+    return ok.includes(f[5]) && f[4] >= 8 && f[4] <= 70 && f[2] - f[0] >= 8 && f[3] - f[1] >= 8 && d > 50 && d < 240 && !overWater(x, z);
+  });
+  for (let i = roofs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [roofs[i], roofs[j]] = [roofs[j], roofs[i]]; }
+  const used = [];
+  for (const f of roofs) {
+    if (used.length >= need) break;
+    const cx = (f[0] + f[2]) / 2, cz = (f[1] + f[3]) / 2;
+    if (used.every(u => Math.hypot(u[0] - cx, u[1] - cz) > 40)) { used.push([cx, cz]); placeVictim('person', roofSpot(f)); }
+  }
+  for (let i = 0; DIS.victims.length < need && roofs.length; i++) placeVictim('person', roofSpot(roofs[i % roofs.length]));
+  DIS.evac = makeEvac(BUNKER, 'shelter', true);
+  if (P.mode === 'plane') abandonPlane();
+  placeAt(spawnPos, Math.PI * 0.75); P.safe.copy(spawnPos); P.safeYaw = Math.PI * 0.75; camPitch = 0.28;
+  $('boss').hidden = false; $('boss').classList.remove('hot'); document.body.classList.add('bossfight');
+  message(saved ? `Back at the checkpoint<small>${saved} of ${BOSS_N} are already safe. Save the rest before Kingsley barks</small>`
+    : `Final boss: Kingsley<small>Save ${BOSS_N} people before his Sonic Bark goes off. Every rescue resets it</small>`, 3.5);
+  sfx.alarm('tornado'); rumble(0.6, 0.6, 400); updateAlert(); storyHud();
+}
+function restartBoss() { clearDisaster(); startBoss(); }
+function bossSaved(left) {
+  const a = DIS.active; a.saved++; a.charge = 0; a.stun = 2.5;
+  tone(950, 0.22, 'sine', 0.08, 640); tone(820, 0.32, 'sine', 0.07, 480, 0.24); // a confused whimper
+  if (!left) return;
+  if (a.saved % BOSS_CP === 0) { STORY.cp = a.saved; saveStory(); storyHud(); message(`Checkpoint<small>${a.saved} of ${BOSS_N} saved. If Kingsley barks, you start from here</small>`, 2.2); }
+  else message(`Saved!<small>Kingsley lost his focus. ${left} still waiting</small>`, 1.6);
+}
+function bark() {
+  const a = DIS.active, K = a.dog;
+  a.phase = 'bark'; a.waveR = 2; a.hit = false; a.wave.visible = a.wave2.visible = true;
+  K.jaw.rotation.x = -0.9; K.glow.visible = false;
+  noiseHit(1.1, 'bandpass', 400, 1800, 0.7, 0.8); tone(110, 0.9, 'sawtooth', 0.22, 45); tone(520, 0.35, 'square', 0.1, 220); tone(260, 0.5, 'square', 0.08, 120, 0.05);
+  rumble(1, 1, 700); quake = 1.6;
+}
+function bossDeath() {
+  crash = 3; P.vel.set(0, 0, 0); P.trick = null; dropCombo(); dropCarry(true); DIS.restart = true;
+  sfx.wipeout(); rumble(1, 1, 600);
+  $('flash').style.opacity = 0.7; setTimeout(() => { $('flash').style.opacity = 0; }, 180);
+  message(`Kingsley barked!<small>The Sonic Bark got you. Back to the last checkpoint: ${STORY.cp} of ${BOSS_N} saved</small>`, 3);
+}
+function startMeteor() {
+  const a = DIS.active; a.phase = 'meteor'; a.mt = 0;
+  const m = new THREE.Mesh(ball(5), new THREE.MeshBasicMaterial({ color: 0xffd27a, fog: false }));
+  m.add(new THREE.Mesh(ball(11), new THREE.MeshBasicMaterial({ color: 0xff6a1f, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
+  a.meteorFrom = a.headPos.clone().add(tmp.set(260, 620, -200)); m.position.copy(a.meteorFrom); m.frustumCulled = false;
+  scene.add(m); a.meteor = m; a.meshes.push(m);
+  tone(2400, 3.5, 'sine', 0.06, 260);
+  $('bossState').textContent = 'Look up!';
+  message('Everyone is safe!<small>Wait... what is that in the sky?</small>', 3);
+}
+function meteorImpact() {
+  const a = DIS.active, K = a.dog, h = a.headPos;
+  a.phase = 'down'; a.mt = 0; a.meteor.visible = false;
+  for (let i = 0; i < 260; i++) {
+    const u = Math.random() * 6.28, v = Math.random() * 2 - 1, r = Math.sqrt(1 - v * v), sp = 10 + Math.random() * 30;
+    emit(flames, h.x, h.y, h.z, Math.cos(u) * r * sp, v * sp + 6, Math.sin(u) * r * sp, 0.6 + Math.random() * 0.8);
+  }
+  for (let i = 0; i < 60; i++) emit(smoke, h.x + (Math.random() - 0.5) * 10, h.y, h.z + (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 12, 4 + Math.random() * 6, (Math.random() - 0.5) * 12, 4 + Math.random() * 3);
+  noiseHit(1.8, 'lowpass', 2400, 40, 0.9); tone(70, 1.6, 'sine', 0.5, 24);
+  rumble(1, 1, 900); quake = 2.5;
+  const f = $('flash'); f.classList.add('white'); f.style.opacity = 0.85;
+  setTimeout(() => { f.style.opacity = 0; setTimeout(() => f.classList.remove('white'), 500); }, 140);
+  K.jaw.rotation.x = -0.3; K.glow.visible = false;
+  $('boss').hidden = true; document.body.classList.remove('bossfight');
+  message('BONK!<small>A meteor, right on the head</small>', 2.5);
+}
+function winStory() {
+  STORY.won = true; STORY.cp = 0; saveStory(); storyHud(); fanfare(true);
+  DIS.active.ending = 0.0001;
+  showCutscene(STORY_END, fp => resumePlay(fp));
+}
+function updateBoss(dt, now) {
+  const a = DIS.active, K = a.dog, g = K.g, p = P.pos, live = playing && !crash;
+  K.head.getWorldPosition(a.headPos);
+  if (a.phase === 'hunt' && live) {
+    if (a.stun > 0) a.stun -= dt; else a.charge += dt / barkTime(a.saved);
+    const c = a.charge, walking = c < 0.78;
+    if (walking) { // prowl the loop of streets around the start tower
+      const [tx, tz] = KINGSLEY_PATH[a.wi], dx = tx - g.position.x, dz = tz - g.position.z, d = Math.hypot(dx, dz);
+      if (d < 1) a.wi = (a.wi + 1) % KINGSLEY_PATH.length;
+      else {
+        const sp = a.stun > 0 ? 2 : 6;
+        g.position.x += dx / d * sp * dt; g.position.z += dz / d * sp * dt;
+        let dy = Math.atan2(-dx, -dz) - g.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+        g.rotation.y += dy * Math.min(1, dt * 1.5);
+        a.walk += sp * dt * 0.55;
+      }
+    }
+    const sw = walking ? Math.sin(a.walk) * 0.45 : 0;
+    K.legs.forEach((l, i) => { l.rotation.x = i === 0 || i === 3 ? sw : -sw; });
+    K.body.position.y = walking ? Math.abs(Math.cos(a.walk)) * 0.04 : 0;
+    const ph = Math.floor(a.walk / Math.PI); // every footfall thumps, and shakes the camera when you're close
+    if (ph !== a.ph) {
+      a.ph = ph; const d = Math.hypot(p.x - g.position.x, p.z - g.position.z);
+      if (d < 220) { tone(48, 0.35, 'sine', 0.35 * (1 - d / 220), 30); quake = Math.max(quake, 0.5 * (1 - d / 220)); }
+    }
+    // he watches you, then rears up, opens wide and glows as the bark charges
+    let want = Math.atan2(-(p.x - g.position.x), -(p.z - g.position.z)) - g.rotation.y; want = Math.atan2(Math.sin(want), Math.cos(want));
+    K.neck.rotation.y = lerp(K.neck.rotation.y, clamp(want, -1, 1), Math.min(1, dt * 3));
+    const up = clamp((c - 0.72) / 0.28, 0, 1);
+    K.neck.rotation.x = lerp(K.neck.rotation.x, up * 0.55, Math.min(1, dt * 4));
+    K.jaw.rotation.x = -up * 0.7;
+    K.head.rotation.z = a.stun > 0 ? Math.sin(a.t * 22) * 0.25 * Math.min(1, a.stun) : 0; // shakes it off after each rescue
+    K.glow.visible = c > 0.35; K.glow.scale.setScalar(0.2 + Math.pow(c, 3) * 2.2);
+    K.glow.material.opacity = 0.5 + 0.4 * Math.sin(now / (c > 0.85 ? 50 : 140));
+    K.body.position.x = c > 0.85 ? (Math.random() - 0.5) * 0.03 : 0;
+    if (c > 0.55 && (a.growlT -= dt) <= 0) { a.growlT = lerp(1.1, 0.18, (c - 0.55) / 0.45); tone(160 + c * 500, 0.16, 'sawtooth', 0.045, 120 + c * 700); }
+    if (c >= 1) bark();
+  } else if (a.phase === 'bark') { // the shockwave rolls out over the whole city
+    a.waveR += 300 * dt;
+    a.wave.position.copy(a.headPos); a.wave.scale.setScalar(a.waveR);
+    a.wave2.position.copy(a.headPos); a.wave2.scale.setScalar(a.waveR);
+    a.wave.material.opacity = Math.max(0, 0.3 - a.waveR / 4000); a.wave2.material.opacity = Math.max(0, 0.9 - a.waveR / 1500);
+    if (!a.hit && a.waveR >= a.headPos.distanceTo(p)) { a.hit = true; bossDeath(); }
+    if (a.waveR > 1400) a.wave.visible = a.wave2.visible = false;
+  } else if (a.phase === 'meteor' && playing) {
+    a.mt += dt; const t = clamp(a.mt / 3.5, 0, 1);
+    a.meteor.position.copy(a.meteorFrom).lerp(a.headPos, t * t);
+    const m = a.meteor.position;
+    for (let i = 0; i < 6; i++) emit(flames, m.x + (Math.random() - 0.5) * 6, m.y + (Math.random() - 0.5) * 6, m.z + (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, 0.5 + Math.random() * 0.5);
+    if (Math.random() < 0.5) emit(smoke, m.x, m.y, m.z, 0, 1, 0, 3);
+    K.neck.rotation.x = lerp(K.neck.rotation.x, 0.9, Math.min(1, dt * 2)); K.neck.rotation.y = lerp(K.neck.rotation.y, 0, Math.min(1, dt * 2)); // looks up
+    K.jaw.rotation.x = -0.5; K.legs.forEach(l => { l.rotation.x = 0; });
+    if (t >= 1) meteorImpact();
+  } else if (a.phase === 'down') { // knocked flat, seeing stars
+    a.mt += dt;
+    g.rotation.z = lerp(g.rotation.z, 1.5, Math.min(1, dt * 3));
+    K.stars.visible = true; K.stars.rotation.y += dt * 4;
+    if (a.mt > 3.5) { a.phase = 'shrink'; a.mt = 0; K.stars.visible = false; message('Kingsley is shrinking!<small>The meteor knocked the radiation right out of him</small>', 3); }
+  } else if (a.phase === 'shrink') {
+    a.mt += dt; const t = clamp(a.mt / 2.5, 0, 1), e = t * t * (3 - 2 * t);
+    g.scale.setScalar(lerp(KS, 0.4, e)); g.rotation.z = lerp(1.5, 0, e); K.neck.rotation.x = lerp(0.9, 0, e);
+    if (t >= 1) { a.phase = 'good'; a.mt = 0; sfx.saved(); message('Good boy, Kingsley<small>You saved Vertigo City</small>', 3); }
+  } else if (a.phase === 'good') { // a normal-sized Boston terrier again, wagging
+    a.mt += dt; K.tail.rotation.y = Math.sin(a.mt * 25) * 0.7; K.body.position.y = Math.abs(Math.sin(a.mt * 6)) * 0.06;
+    if (a.mt > 3 && !STORY.won) winStory();
+  }
+  if (a.phase === 'down' || a.phase === 'shrink') g.position.y = 0.42 * g.scale.x * Math.sin(g.rotation.z); // lying on his side, not sunk into the street
+  if (live && (a.phase === 'hunt' || a.phase === 'bark' || a.phase === 'meteor') && P.mode !== 'plane') { // he's solid: push you out of his body
+    const dx = p.x - g.position.x, dz = p.z - g.position.z, d = Math.hypot(dx, dz), R = 0.7 * KS;
+    if (d < R && d > 0.01 && p.y < 1.9 * KS) { p.x = g.position.x + dx / d * R; p.z = g.position.z + dz / d * R; }
+  }
+  // the Sonic Bark meter
+  const pct = a.phase === 'hunt' ? Math.round(a.charge * 100) : a.phase === 'bark' ? 100 : 0;
+  if (pct !== a.pct) {
+    a.pct = pct; $('bossFill').style.width = pct + '%'; $('boss').classList.toggle('hot', pct >= 80);
+    $('bossState').textContent = a.phase === 'bark' ? 'BARK!' : a.phase !== 'hunt' ? 'Look up!' : a.stun > 0 ? 'Distracted' : pct >= 80 ? 'About to bark!' : 'Charging';
+  }
+}
+if (!STORY.won) DIS.next = STORY.done >= MISSIONS.length ? 4 : 12;
+storyHud();
 
 // ---------- surfing ----------
 // Land in the river (or ride out over a flood) and he's up on a surfboard. Waves roll down the river; riding down a face speeds you up.
@@ -3439,10 +3876,20 @@ function pause() {
   $('go').textContent = finished ? 'New run' : 'Resume';
   $('intro').hidden = false; $('hud').hidden = true; $('touch').hidden = true;
 }
-function startGame(fromPad) {
-  if (finished) resetRun();
+function resumePlay(fromPad) {
   playing = true; $('intro').hidden = true; $('hud').hidden = false; $('touch').hidden = !coarse || pad.connected;
   startAudio(); if (!coarse && !fromPad) tryLock();
+}
+function startGame(fromPad) {
+  if (finished) resetRun();
+  if (!STORY.intro) { // first time: the origin story, then mission 1
+    startAudio();
+    showCutscene(STORY_INTRO.concat(STORY_BOSS), fp => { // the origin story runs straight into Kingsley
+      STORY.intro = STORY.bossSeen = true; saveStory(); resumePlay(fp); startBoss();
+    });
+    return;
+  }
+  resumePlay(fromPad);
 }
 $('go').addEventListener('click', () => startGame(false));
 $('tMusic').addEventListener('click', () => { startAudio(); setSound('music', !SND.music); });
@@ -3501,7 +3948,7 @@ function frameBody(now) {
     }
     mouseDX = mouseDY = 0;
     if (crash > 0) {
-      crash -= dt; if (crash <= 0) { crash = 0; toSafe(); }
+      crash -= dt; if (crash <= 0) { crash = 0; if (DIS.restart) restartBoss(); else toSafe(); }
     } else {
       acc += dt;
       while (acc >= STEP) { step(STEP); acc -= STEP; if (crash) { acc = 0; break; } }
@@ -3610,6 +4057,10 @@ function frameBody(now) {
   if (!reduceMotion && speed > 30 && !flying) {
     shakeT += dt * 40; const k = (speed - 30) * 0.0016;
     camera.position.x += Math.sin(shakeT * 1.3) * k; camera.position.y += Math.sin(shakeT * 1.7) * k;
+  }
+  if (quake > 0) {
+    quake = Math.max(0, quake - dt * 1.5);
+    if (!reduceMotion) { camera.position.x += (Math.random() - 0.5) * quake; camera.position.y += (Math.random() - 0.5) * quake; }
   }
   camera.lookAt(tmp.set(camTarget.x + shX, camTarget.y, camTarget.z + shZ));
   camera.updateMatrixWorld();
