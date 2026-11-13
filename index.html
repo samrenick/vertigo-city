@@ -146,8 +146,8 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
     <div class="style rescued" id="rescued">0</div>
     <div class="lbl" style="margin-top:10px">Passengers</div>
     <div class="style" id="pax">0</div>
-    <div class="lbl" style="margin-top:10px">Story</div>
-    <div class="style" id="mission">Boss</div>
+    <div class="lbl" style="margin-top:10px">Mission</div>
+    <div class="style" id="mission">1/5</div>
   </div>
   <div class="bl">
     <div class="gauge speed" id="spdBox"><span class="num" id="spd">0</span><span class="unit">KM/H</span></div>
@@ -197,7 +197,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 <div class="intro" id="intro">
   <div class="card">
     <h1>Vertigo<span>City</span></h1>
-    <p id="introText">A radioactive spider bit a squirrel. The squirrel bit a random guy at a bus stop. Now he's Squirrel Man, and he can climb, glide, swing on web lines and turn into a squirrel. Now Kingsley, a giant Boston terrier, is stomping through downtown, and only Squirrel Man can stop him. Between missions, fly through the 20 orange rings against the clock.</p>
+    <p id="introText">A radioactive spider bit a squirrel. The squirrel bit a random guy at a bus stop. Now he's Squirrel Man, and he can climb, glide, swing on web lines and turn into a squirrel. Finish 5 rescue missions to save Vertigo City, then face the final boss. Or press Skip to boss and go straight to him. Between missions, fly through the 20 orange rings against the clock.</p>
     <p class="storyline" id="storyLine"></p>
     <div class="keys">
       <div class="sec">On foot</div>
@@ -238,6 +238,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
       <kbd>Land</kbd><span>Line up with a runway (or any big flat space), let go of Shift and ease the nose down with W. Below 80 m it slows to approach speed, levels the wings and flares by itself. Just don't dive steeply or bank hard. On the ground, S brakes</span>
       <kbd>E</kbd><span>Get out once you've stopped. In the air you can bail out, but not with passengers aboard</span>
       <div class="sec">Story</div>
+      <kbd>5 missions</kbd><span>Each mission is a fire, flood or tornado rescue. The next one starts a few seconds after you finish the last. Your progress is saved</span>
       <kbd>Final boss</kbd><span>Kingsley, a giant Boston terrier, is charging his Sonic Bark. Every person you save breaks his focus and resets the meter. If he barks, you go back to the last checkpoint. Save everyone to win</span>
       <div class="sec">Disasters and rescues</div>
       <kbd>Every few minutes</kbd><span>A fire, flood or tornado strikes. Follow the green arrow to people and animals in trouble, touch them to pick them up, and carry them to the blue drop-off. Squirrels can carry animals but not people</span>
@@ -272,6 +273,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
     <div class="sndrow">
       <button class="snd" id="tStory" type="button">Watch the story</button>
       <button class="snd" id="tRestart" type="button">Restart story</button>
+      <button class="snd" id="tBoss" type="button">Skip to boss</button>
     </div>
     <p class="padnote" id="padNote">Using a controller? Press any button on it so the browser can see it.</p>
     <button class="go" id="go" type="button">Drop in</button>
@@ -2934,7 +2936,7 @@ function alertText() {
   const where = DISTRICT_NAMES[districtAt(Math.floor(a.cx / PERIOD), Math.floor(a.cz / PERIOD))] || 'the city';
   const tag = a.mission ? `Mission ${a.mission}/${MISSIONS.length} · ` : '';
   if (!left) return `${tag}${NAMES[a.type]} · everyone is safe`;
-  if (a.type === 'boss') return `Final boss · Kingsley the giant Boston terrier · ${left} to save · bring them to the bunker`;
+  if (a.type === 'boss') return `Final boss · ${left} to save · bring them to the bunker`;
   const goal = a.type === 'flood' ? 'helicopter on the roof' : GOAL[a.type];
   return `${tag}${NAMES[a.type]} in ${where} · ${left} to rescue · bring them to the ${goal}`;
 }
@@ -3220,13 +3222,13 @@ function drawDisasterMap(ctx) {
 
 // ---------- story: Squirrel Man ----------
 // A radioactive spider bites a squirrel, the squirrel bites a random guy, and he becomes Squirrel Man.
-// Straight from the origin story into the boss fight with Kingsley, a giant Boston terrier. MISSIONS is empty, so there are
-// no rescue missions first; add titles to it to put missions back in front of the boss.
+// 5 rescue missions (the disasters above, back to back), then the final boss: Kingsley, a giant Boston terrier.
+// The title screen's Skip to boss button jumps straight to him.
 // Progress is saved after every mission and at boss checkpoints.
 const STORY = Object.assign({ intro: false, done: 0, bossSeen: false, cp: 0, won: false },
   (() => { try { return JSON.parse(store.get('vertigo-story')) || {}; } catch (e) { return {}; } })());
 function saveStory() { store.set('vertigo-story', JSON.stringify(STORY)); }
-const MISSIONS = [];
+const MISSIONS = ['First day on the job', 'Twister on Main Street', 'The Kessel bursts its banks', 'Five-alarm fire', 'Something is growling'];
 const NEWS = {
   2: 'The Vertigo Times asks: WHO IS SQUIRREL MAN?', 3: 'People hear strange barking out past the docks at night',
   4: 'One mission left. The barking is getting louder'
@@ -3283,10 +3285,12 @@ const STORY_INTRO = [
   { kicker: 'Downtown · 8 a.m.', title: 'Wrong place, wrong time', text: 'The glowing squirrel ran down the street and bit a random guy waiting for the bus. Just some guy, on his way to work.',
     art: svgWrap('#e9b07a', `${skyline('#c98a64')}<rect y="150" width="320" height="30" fill="#7a6f6a"/><rect x="86" y="70" width="4" height="80" fill="#3a3f55"/><rect x="72" y="62" width="32" height="18" rx="3" fill="#2f5d8a"/><text x="88" y="75" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#fff">BUS</text>${guyArt(150, 150, 1.1, '#3f7a5a')}${squirrelArt(176, 150, 0.8, true, true)}${pow(236, 62, 'OUCH!')}`) },
   { kicker: 'The next morning', title: 'Squirrel Man', text: 'He can climb any wall, glide on flaps, swing on web lines and turn into a squirrel whenever he wants. The city is going to need all of it.',
-    art: svgWrap('#2a1f45', `<circle cx="220" cy="110" r="70" fill="#ff6a1f" opacity=".35"/>${skyline('#17142b')}${heroArt(220, 168, 1.2)}${pow(84, 76, 'SQUIRREL', -6, 40, '#ff6a1f')}${pow(84, 116, 'MAN', -6, 40, '#ff6a1f')}`) }
+    art: svgWrap('#2a1f45', `<circle cx="220" cy="110" r="70" fill="#ff6a1f" opacity=".35"/>${skyline('#17142b')}${heroArt(220, 168, 1.2)}${pow(84, 76, 'SQUIRREL', -6, 40, '#ff6a1f')}${pow(84, 116, 'MAN', -6, 40, '#ff6a1f')}`) },
+  { kicker: 'Your job', title: '5 rescue missions', text: 'Fires, floods and tornadoes keep hitting Vertigo City. Finish 5 rescue missions. And keep your ears open: something big is growling out past the docks.', go: 'Drop in',
+    art: svgWrap('#241f3a', `${skyline('#332c52')}<path d="M52 124 Q42 104 54 90 Q56 104 64 100 Q62 84 76 74 Q76 96 88 104 Q92 116 84 124 Z" fill="#ff6a1f"/><path d="M62 124 Q58 112 66 104 Q70 114 76 110 Q80 118 76 124 Z" fill="#ffd23f"/>${[0, 1, 2, 3, 4].map(i => `<ellipse cx="${160 + i * 3}" cy="${70 + i * 16}" rx="${34 - i * 6}" ry="6" fill="none" stroke="#d8d2c8" stroke-width="5"/>`).join('')}<path d="M210 140 q15 -14 30 0 t30 0 t30 0 t30 0 V180 H210 Z" fill="#5fb4d4"/>${pow(160, 44, '5 MISSIONS', 0, 34)}`) }
 ];
 const STORY_BOSS = [
-  { kicker: 'One week later', title: 'The ground shakes', text: 'The radioactive squirrel had one bite left. It bit Kingsley, a Boston terrier, and Kingsley grew taller than the buildings. Now he\'s prowling downtown.',
+  { kicker: 'After mission 5', title: 'The ground shakes', text: 'The radioactive squirrel had one bite left. It bit Kingsley, a Boston terrier, and Kingsley grew taller than the buildings. Now he\'s prowling downtown.',
     art: svgWrap('#3a2030', `${kingsleyArt(160, 98, 1.1, false)}${skyline('#24152a', 0.62)}${heroArt(36, 176, 0.3)}${pow(266, 44, 'GRRR...', 6, 30)}`) },
   { kicker: 'Final boss', title: 'The Sonic Bark', text: `Kingsley is charging a bark so loud it knocks out the whole city. Save ${BOSS_N} people and bring them to the bunker. Every rescue breaks his focus and resets the meter. If he barks, you go back to the last checkpoint.`, go: 'Fight',
     art: svgWrap('#1c2238', `${[1, 2, 3, 4].map(i => `<circle cx="160" cy="127" r="${30 + i * 22}" fill="none" stroke="#9fe8ff" stroke-width="4" opacity="${1 - i * 0.2}"/>`).join('')}${kingsleyArt(160, 100, 1, true)}${pow(160, 172, 'WOOOOF!', 0, 30, '#9fe8ff')}`) }
@@ -3338,7 +3342,16 @@ $('tRestart').addEventListener('click', () => {
   delete b.dataset.arm; b.textContent = 'Restart story';
   if (DIS.active) clearDisaster();
   Object.assign(STORY, { done: 0, bossSeen: false, cp: 0, won: false }); saveStory();
-  DIS.next = 4; storyHud();
+  DIS.next = 12; storyHud();
+});
+$('tBoss').addEventListener('click', () => { // skip the missions and fight Kingsley now
+  startAudio();
+  if (finished) resetRun();
+  if (DIS.active && DIS.active.type === 'boss') { resumePlay(false); return; }
+  if (DIS.active) clearDisaster();
+  Object.assign(STORY, { intro: true, done: MISSIONS.length, cp: 0, won: false }); saveStory(); storyHud();
+  if (STORY.bossSeen) { resumePlay(false); startBoss(); }
+  else showCutscene(STORY_BOSS, fp => { STORY.bossSeen = true; saveStory(); resumePlay(fp); startBoss(); });
 });
 
 // ---------- the final boss: Kingsley ----------
@@ -3406,7 +3419,9 @@ function startBoss() {
   for (let i = 0; DIS.victims.length < need && roofs.length; i++) placeVictim('person', roofSpot(roofs[i % roofs.length]));
   DIS.evac = makeEvac(BUNKER, 'shelter', true);
   if (P.mode === 'plane') abandonPlane();
-  placeAt(spawnPos, Math.PI * 0.75); P.safe.copy(spawnPos); P.safeYaw = Math.PI * 0.75; camPitch = 0.28;
+  // start down the same street as him, looking straight at him as he comes your way
+  const start = new THREE.Vector3(40, 0, -64), faceK = Math.atan2(-(dog.g.position.x - start.x), -(dog.g.position.z - start.z));
+  placeAt(start, faceK); P.safe.copy(spawnPos); P.safeYaw = Math.PI * 0.75; camPitch = 0.12;
   $('boss').hidden = false; $('boss').classList.remove('hot'); document.body.classList.add('bossfight');
   message(saved ? `Back at the checkpoint<small>${saved} of ${BOSS_N} are already safe. Save the rest before Kingsley barks</small>`
     : `Final boss: Kingsley<small>Save ${BOSS_N} people before his Sonic Bark goes off. Every rescue resets it</small>`, 3.5);
@@ -3884,8 +3899,9 @@ function startGame(fromPad) {
   if (finished) resetRun();
   if (!STORY.intro) { // first time: the origin story, then mission 1
     startAudio();
-    showCutscene(STORY_INTRO.concat(STORY_BOSS), fp => { // the origin story runs straight into Kingsley
-      STORY.intro = STORY.bossSeen = true; saveStory(); resumePlay(fp); startBoss();
+    showCutscene(STORY_INTRO, fp => {
+      STORY.intro = true; saveStory(); resumePlay(fp);
+      message(`Mission 1 of ${MISSIONS.length} starts in a few seconds<small>Press N (D-pad up) to start it now</small>`, 4);
     });
     return;
   }
